@@ -1,0 +1,3278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="theme-color" content="#faf8f5" id="themeColorMeta">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <link rel="stylesheet" href="assets/styles/index.css"/>
+  <link rel="stylesheet" href="assets/styles/main.css">
+  <link rel="stylesheet" href="assets/styles/additional.css">
+  <!-- <link rel="stylesheet" href="assets/styles/index-dark.css"/>
+  <link rel="stylesheet" href="assets/styles/main-dark.css"> -->
+  <link rel='stylesheet' href='assets/styles/solid-rounded.css'/>
+  <link rel="stylesheet" href="assets/styles/regular-rounded.css"/>
+  <link rel="shortcut icon" href="assets/favicon/android-chrome-512x512.png" type="image/png">
+  <link rel="manifest" href="manifest.json"/>
+  <title>Sokoni App</title>
+  <style>
+    /* Wishlist Panel Styles */
+    .wishlistPanel .wishlistList {
+        padding: var(--average-padding, 1rem);
+    }
+
+    .wishlistItem {
+        display: flex;
+        gap: var(--average-padding, 1rem);
+        align-items: center;
+        background: var(--bone-white, #f8f8f8);
+        padding: var(--average-padding, 1rem);
+        border-radius: var(--border-radius-lg, 12px);
+        margin-bottom: var(--average-padding, 1rem);
+        border: 1px solid var(--border-color, #eee);
+    }
+
+    .wishlistItem .product-img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: var(--border-radius-md, 8px);
+        flex-shrink: 0;
+    }
+
+    .wishlistItem .data {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* prevent overflow */
+    }
+
+    .wishlistItem .data h3 {
+        font-size: var(--font-sm, 1rem);
+        font-weight: 600;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wishlistItem .data .price {
+        font-size: var(--font-xs, 0.9rem);
+        color: var(--primary-color, #007bff);
+        font-weight: 700;
+        margin: 0.25rem 0;
+    }
+
+    .wishlistItem .profile {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+
+    .wishlistItem .profile img {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .wishlistItem .profile div {
+        line-height: 1.2;
+        min-width: 0;
+    }
+
+    .wishlistItem .profile h4 {
+        font-size: var(--font-xs, 0.85rem);
+        font-weight: 600;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wishlistItem .profile p {
+        font-size: var(--font-xxs, 0.75rem);
+        color: var(--gray-color, #888);
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wishlistItem .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .wishlistItem .actions i {
+        font-size: 1.4rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .wishlistItem .actions .move-to-cart {
+        color: var(--primary-color, #007bff);
+    }
+    .wishlistItem .actions .move-to-cart:hover {
+        background-color: var(--primary-color-light, #e0efff);
+    }
+
+    .wishlistItem .actions .remove-wishlist {
+        color: var(--gray-color, #888);
+    }
+    .wishlistItem .actions .remove-wishlist:hover {
+        color: var(--bright-red, #ff0000);
+        background-color: #ff00001a;
+    }
+  </style>
+</head>
+<script>
+let quickBuyItem = undefined;
+
+async function registerSW() {
+  if (!("serviceWorker" in navigator)) throw new Error("Service workers not supported");
+  const reg = await navigator.serviceWorker.register("/sw.js");
+
+  navigator.serviceWorker.addEventListener("message", event => {
+    if (event.data?.type === "push") {
+      const payload = event.data.payload;
+      console.log(payload);
+      setTimeout(()=>{refreshMessages(payload);}, 1000)
+    }
+  });
+
+  return reg;
+}
+function refreshMessages(payload){
+  const messageRoom = document.querySelector(".page.chatroom");
+  if (payload.body.includes("💬") && messageRoom.classList.contains("active")) {
+    console.log("payload:", payload)
+    getConversation(messageRoom.getAttribute("activeChat"));
+  }else if(payload.body.includes("💬")){
+    addUnread(payload.adt)
+    displayConversations();
+    console.log("Non-chat notification:", payload.body);
+  }
+};
+function addUnread(id) {
+  let unread = JSON.parse(localStorage.getItem("sokoni_unread")) || {};
+  unread[id] = (unread[id] || 0) + 1;
+  localStorage.setItem("sokoni_unread", JSON.stringify(unread));
+};
+function def(fn){fn()};
+function get(el, all=false){return all ? document.querySelectorAll(el) : document.querySelector(el)};
+</script>
+<body>
+<section>
+  <div class="loader"><img src='assets/favicon/android-chrome-512x512.png' alt=""></div>
+
+  <div class="section-content startup">
+    <div class="startup-scroll">
+      <div class="dummy"></div>
+      <img src="assets/images/startup00.jpg"/>
+      <img src="assets/images/startup01.jpg"/>
+      <img src="assets/images/startup02.jpg"/>
+      <img src="assets/images/startup03.jpg"/>
+      <div class="dummy"></div>
+    </div>
+    <div class="scroll-nav">
+      <img src="assets/images/swipe.gif" class="swipeInstruct"/>
+      <span class="nav active"></span>
+      <span class="nav"></span>
+      <span class="nav"></span>
+      <span class="nav"></span>
+    </div>
+    <h1 class="startup-title" sw="Tafuta na nunua kwa machalii wa Afrika" en="Find, Inspect & Buy from African Sellers">Find, Inspect & Buy from African Sellers</h1>
+    <p class="startup-dsc" sw="Pata bidhaa halal moja kwa moja kutoka kwa wauzaji wa ukweli Afrika. Hakuna longolongo!" en="Discover real products straight from African sellers. no stress, just pure hustle vibes.">
+        Discover real products straight from African sellers. no stress, just pure hustle vibes.
+    </p>
+    <div class="slider-btn" fn="openPop1">get started</div>
+  </div>
+
+  <div class="section-content onboarding">
+    <div class="first-content">
+      <img src="assets/favicon/android-chrome.png" class="logoDisplay">
+      <div class="stepsList">
+        <i class="fi fi-sr-english"></i>
+        <i class="fi fi-sr-venus-mars"></i>
+        <i class="fi fi-sr-member-list"></i>
+        <i class="fi fi-sr-box-open-full"></i>
+        <!-- <i class="fi fi-sr-wallet-money"></i> -->
+      </div>
+      <h2 class="titleDsc"></h2>
+      <p class="description"></p>
+    </div>
+
+    <div class="main-content">
+      <div class="stepContent" id="language">
+        <div class="largeSelections">
+          <div class="option disabled" value="sw" style="display: none;">
+            <div class="icons">
+              <i class="fi fi-rr-messages"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Kiswahili" en="Swahili">Swahili</h2>
+            <i class="fi fi-rr-thumbtack description" sw="Chagua hii kama wewe ni mrembo" en="Select this if you are a Woman / Girl">Kama ni mswahili chagua hii</i>
+          </div>
+          <div class="option" value="en">
+            <div class="icons">
+              <i class="fi fi-rr-english"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Kiingereza" en="English">English</h2>
+            <i class="fi fi-rr-thumbtack description" sw="Chagua hii kama wewe ni jamaa" en="Select this if you are a Man / Boy">for english speakers only</i>
+          </div>
+        </div>
+      </div>
+
+      <div class="stepContent" id="gender">
+        <div class="largeSelections">
+          <div class="option" value="female">
+            <div class="icons">
+              <i class="fi fi-rr-venus"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Ke" en="Ladies / Girls">Ladies / Girls</h2>
+            <i class="fi fi-rr-thumbtack description" sw="Chagua hii kama wewe ni mrembo" en="Select this if you are a Woman / Girl">Select this if you are a Woman / Girl</i>
+          </div>
+          <div class="option" value="male">
+            <div class="icons">
+              <i class="fi fi-rr-mars"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Me" en="Gents / Boys">Gents / Boys</h2>
+            <i class="fi fi-rr-thumbtack description" sw="Chagua hii kama wewe ni jamaa" en="Select this if you are a Man / Boy">Select this if you are a Man / Boy</i>
+          </div>
+        </div>
+        <p class="el-status" style="width: 100%;padding: var(--average-padding);" sw="ANGALIZO: App hii haishikilii mambo ya LGBTQ" en="NOTE: Our app does not support LGBTQ activities"><i class="fi fi-sr-triangle-warning"></i>NOTE: Our app does not support LGBTQ activities</p>
+      </div>
+
+      <div class="stepContent" id="role">
+        <div class="largeSelections">
+          <div class="option" value="client">
+            <div class="icons">
+              <i class="fi fi-rr-store-buyer"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Mnunuzi / Mteja" en="Sokoni client">Sokoni client</h2>
+            <i class="fi fi-rr-check-circle description" sw="Nunua bila pressure ya kuuza" en="Buy from Anyone without Selling">Buy from Anyone without Selling</i>
+          </div>
+          <div class="option" value="supplier">
+            <div class="icons">
+              <i class="fi fi-rr-supplier-alt"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Duka la Jumla" en="Sokoni Supplier">Sokoni Supplier</h2>
+            <i class="fi fi-rr-check-circle description" sw="Uza bila kununua chochote" en="Sell to Anyone without Buying">Sell to Anyone without Buying</i>
+          </div>
+          <div class="option disabled" value="retailer">
+            <div class="icons">
+              <i class="fi fi-rr-store-alt"></i>
+              <i class="fi fi-rr-check"></i>
+            </div>
+            <h2 class="title" sw="Duka la Rejareja" en="Sokoni retailer">Sokoni retailer</h2>
+            <i class="fi fi-rr-check-circle description" sw="Chukua kwa wasambazaji, peleka kwa wateja" en="Buy from Suppliers, Sell to Clients">Buy from Suppliers, Sell to Clients</i>
+          </div>
+        </div>
+      </div>
+
+      <div class="stepContent" id="categories">
+        <div class="selection" id="categories">
+        </div>
+      </div>
+
+      <!-- <div class="stepContent" id="wallet">
+        <div class="mobile" id="onboardingInput">
+            <div class="userSelect" values="opt one|opt two|opt three">
+                <p class="value">🇹🇿+255</p>
+                <div class="options">
+                    <span>🇲🇦+212</span>
+                </div>
+            </div>
+            <div class="input">
+                <input space="3" maxlength="11" inputmode="numeric" enterkeyhint="done" vtype="int" type="text" spellcheck="false" placeholder="Phone Number">
+                <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+            </div>
+        </div>
+        <div class="userCard">
+          <div class="card-back side">
+              <p class="cardID">atartg************hfd78dh</p>
+          </div>
+          <div class="card-front side">
+            <div class="card-content">
+              <img src="./assets/images/logo.png">
+            </div>
+            <div class="card-content">
+              <div class="data">
+                <p>full name</p>
+                <h1>FANEVESAL PETER</h1>
+              </div>
+              <div class="data">
+                <p>exp</p>
+                <h1>12/28</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="el-status finishStat" style="width: 100%;padding: var(--average-padding);opacity: 0;"><i class="fi fi-sr-check-circle"></i>Your account is setup successfully. hit continue to finish</p>
+      </div> -->
+    </div>
+
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left previous call2actionBtn"></i>
+      <div class="default-btn disabled call2actionBtn" left="0"><p sw="Endelea" en="Continue">Continue</p></div>
+    </div>
+  </div>
+
+  <div class="section-content appContent">
+    <div class="sectionNavCont nativeNavigation">
+      <div class="pageee feedCont">
+        <div class="header">
+          <img src="assets/images/logo.png" class="appLogo">
+          <div class="call2act">
+            <i class="fi fi-rr-bell" new="9+" onclick="getFloater('.notify')"></i>
+            <i class="fi fi-rr-comments" onclick="getFloater('.messaging')"></i>
+            <i class="fi fi-rr-shopping-cart cartCounter" new="2" onclick="applyCartData();getFloater('.shoppingCart')"></i>
+          </div>
+        </div>
+
+        <div class="storiesList">
+          <div class="storyCont addStory">
+            <div class="story" src="">
+              <i class="fi fi-sr-add storyTrigger" ontouchend="getFloater('.storyCreate');initCamera()">
+                <img src="assets/images/faces/user0.jfif" alt="userProfile" class="profile">
+              </i>
+              <input type="file" accept=".png,.jpeg,.heic,.jpg" class="iosInput storyInput storyTrigger">
+            </div>
+            <p class="username">Add story</p>
+          </div>
+        </div>
+
+        <div class="postList mainFeedPosts">
+          <div class="postCont">
+            <div class="post" style="background-image: url(assets/images/products/iphone0.jfif);">
+              <div class="postClick" onclick="getFloater('.productView')"></div>
+              <div class="postHead">
+                <div class="leftData">
+                  <img onclick="getFloater('.profileView')" src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+                  <div class="userData">
+                    <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+                    <div class="group">
+                      <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                      <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                    </div>
+                  </div>
+                </div>
+                <i class="fi fi-rr-menu-dots-vertical popAct" onclick="getPop('.optionsReport')"></i>
+              </div>
+              <h2 class="postPrice" old="Tsh. 840k">Tsh. 550,000</h2>
+              <div class="postActions">
+                <i class="fi fi-sr-heart">998</i>
+                <i class="fi fi-rr-comment-alt-middle" onclick="getPop('.comments')">234</i>
+                <!-- <i class="fi fi-rr-paper-plane"></i> -->
+                <i class="fi fi-rr-bookmark"></i>
+                <i class="fi fi-sr-star rating">3.4</i>
+              </div>
+            </div>
+            <div class="postDetails">
+              <div class="postTags">
+                <p>#iphone</p>
+                <p>#iphone13</p>
+                <p>#shopping</p>
+                <p>#fast_delivery</p>
+                <p>#recommended</p>
+                <p>#my_feed</p>
+                <p>#for_you_product</p>
+                <p>#tanzania</p>
+                <p>#dodoma</p>
+              </div>
+              <h4 onclick="getFloater('.productView')">iPhone 13 Plain | DM & BM</h4>
+              <p onclick="getPop('.description')"><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos...</span> <b>more</b></p>
+            </div>
+            <h1 class="postAd">Sponsored</h1>
+          </div>
+          <div class="postCont">
+            <div class="post" style="background-image: url(assets/images/products/pods0.jfif);">
+              <div class="postClick" onclick="getFloater('.productView')"></div>
+              <div class="postHead">
+                <div class="leftData">
+                  <img src="assets/images/faces/user2.jfif" alt="" class="profilePic active">
+                  <div class="userData">
+                    <h4>mosouth_tz <img src="assets/images/badges/blue.png"></h4>
+                    <div class="group">
+                      <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                      <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                    </div>
+                  </div>
+                </div>
+                <i class="fi fi-rr-menu-dots-vertical popAct"></i>
+              </div>
+              <h2 class="postPrice" old="Tsh. 440k">Tsh. 120,000</h2>
+              <div class="postActions">
+                <i class="fi fi-sr-heart">998</i>
+                <i class="fi fi-rr-comment-alt-middle">234</i>
+                <!-- <i class="fi fi-rr-paper-plane"></i> -->
+                <i class="fi fi-rr-bookmark"></i>
+                <i class="fi fi-sr-star rating">3.4</i>
+              </div>
+            </div>
+            <div class="postDetails">
+              <div class="postTags">
+                <p>#earphones</p>
+                <p>#luxury</p>
+                <p>#shopping</p>
+                <p>#fast_delivery</p>
+                <p>#recommended</p>
+                <p>#my_feed</p>
+                <p>#for_you_product</p>
+                <p>#tanzania</p>
+                <p>#dodoma</p>
+              </div>
+              <h4>S11 Headphones | All Colors</h4>
+              <p><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos.</span> <b>more</b></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="postList loaderCont">
+          <div class="loadCont">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+          <div class="loadCont">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pageee feedCont liveMarket">
+        <div class="header">
+          <!-- <h1 class="appFont">Zokoni</h1> -->
+          <img src="assets/images/logo.png" class="appLogo">
+          <div class="call2act">
+            <i class="fi fi-rr-bell" new="9+" onclick="getFloater('.notify')"></i>
+            <i class="fi fi-rr-comments" onclick="getFloater('.messaging')"></i>
+            <i class="fi fi-rr-shopping-cart" new="2" onclick="getFloater('.shoppingCart')"></i>
+          </div>
+        </div>
+
+        <!-- <div class="storiesList">
+          <div class="storyCont">
+            <div class="story" src="">
+              <i class="fi fi-sr-add">
+                <img src="assets/images/faces/user0.jfif" alt="userProfile" class="profile">
+              </i>
+            </div>
+            <p class="username">My story</p>
+          </div>
+        </div> -->
+
+        <div class="advertise">
+          <div class="ad">
+            <img src="assets/images/sokoin.png" alt="">
+            <div class="data">
+              <h2>Get up to <span>-40%</span></h2>
+              <p>Discounts, when you buy with <b>Sokoin</b>, The most secure Crypto Currency</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="postList" style="display: none;">
+          <div class="liveCard">
+            <div class="call2act">
+              <div class="spacer"><div class="default-btn">Watch</div></div> <!-- it can either be watch or wait -->
+              <div class="people">
+                <img src="assets/images/faces/user0.jfif" alt="">
+                <img src="assets/images/faces/user1.jfif" alt="">
+                <img src="assets/images/faces/user3.jfif" alt="">
+                <img src="assets/images/faces/user4.jfif" alt="">
+                <i class="fi fi-sr-users">12k Watching</i>
+              </div>
+            </div>
+            <div class="postHead">
+              <div class="leftData">
+                <img src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+                <div class="userData">
+                  <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+                  <div class="group">
+                    <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                    <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                  </div>
+                </div>
+              </div>
+              <i class="fi fi-rr-menu-dots-vertical popAct" onclick="getPop('.optionsReport')"></i>
+            </div>
+            <div class="activitySect">
+              <div class="images" style="--main: url(../images/products/iphone2.jfif);--bfr: url(../images/products/iphone1.jfif);--aft: url(../images/products/iphone3.jfif);"></div>
+              <div class="tags">
+                <p>#iphone</p>
+                <p>#iphone13</p>
+                <p>#tv</p>
+                <p>#for_you_product</p>
+                <p>#shopping</p>
+                <p>#recommended</p>
+                <p>#my_feed</p>
+                <p>#tanzania</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- load section & cards -->
+        <!-- load section & cards -->
+
+        <div class="postList loaderCont">
+          <div class="loadCont live">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+          <div class="loadCont live">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- disabled pages up top -->
+      <!-- disabled pages up top -->
+      <!-- disabled pages up top -->
+      <!-- disabled pages up top -->
+
+
+      <div class="page exploreCont">
+        <div class="searchBar">
+          <div class="exploreInput">
+            <i class="fi fi-rr-search"></i>
+            <input type="text" id="voiceSearchAble" enterkeyhint="done" placeholder="Search..." class="sokoniSearch">
+            <!-- <i class="fi fi-rr-qrcode"></i> -->
+            <i class="fi fi-rr-microphone" id="initVoice" onclick="initVoiceSearch()"></i>
+            <i class="fi fi-rr-mode-landscape" style="overflow: hidden;"><input type="file" accept=".png,.jpeg,.heic,.jpg" class="iosInput"></i>
+          </div>
+          <div class="searchOptions">
+            <div class="search history active">
+              <i class="fi fi-rr-search"></i>
+              <p>women <b>large</b> shoes</p>
+              <i class="fi fi-rr-cross-small"></i>
+            </div>
+            <div class="search active">
+              <i class="fi fi-rr-search"></i>
+              <p>children <b>large</b> baloons</p>
+              <i class="fi fi-rr-cross-small"></i>
+            </div>
+          </div>
+        </div>
+        <div class="profileRecommend">
+          <div class="profileData mainStory" uName="faustina_rr">
+            <img src="assets/images/faces/user2.jfif" alt="">
+            <i class="fi fi-rr-plus-small">
+              <input type="file" accept=".jpeg,.png,.jfif,.heic,.jpg" class="storyInput storyTrigger">
+            </i>
+          </div>
+          <div class="profileData story" uName="killian_codes">
+            <img src="assets/images/faces/user4.jfif" alt="">
+          </div>
+          <div class="profileData story" uName="pestin_pestin">
+            <img src="assets/images/faces/user6.jfif" alt="">
+          </div>
+          <div class="profileData" uName="salmin_swags">
+            <img src="assets/images/faces/user10.jfif" alt="">
+          </div>
+          <div class="profileData" uName="fanevesal">
+            <img src="assets/images/faces/user3.jfif" alt="">
+          </div>
+        </div>
+        <div class="recommend">
+          <p class="default-btn">Women Shoes</p>
+          <p class="default-btn">Accesories</p>
+          <p class="default-btn">Electronics</p>
+          <p class="default-btn">Pet Foods</p>
+          <p class="default-btn">Organic Gas</p>
+        </div>
+        <div class="explorePosts">
+          <div class="postGrid">
+            <div class="postCont">
+              <div class="postHead">
+                <div class="leftData">
+                  <img src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+                  <div class="userData">
+                    <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+                    <div class="group">
+                      <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                      <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="postActions">
+                <i class="fi fi-sr-star rating">3.4</i>
+                <i class="fi fi-sr-heart"></i>
+                <i class="fi fi-rr-bookmark"></i>
+              </div>
+            </div>
+          </div>
+          <div class="postGrid">
+          </div>
+        </div>
+      </div>
+
+      <div class="page messaging">
+        <div class="header" style="margin-bottom: -0.5rem;">
+          <h2>Messaging</h2>
+          <img src="assets/images/faces/user0.jfif" alt="">
+          <!-- <i class="fi fi-rr-search"></i>
+          <div class="hoveringSearch">
+            <div class="inputSect">
+              <input type="text" placeholder="Search" enterkeyhint="done">
+              <i class="fi fi-rr-search"></i>
+            </div>
+            <div class="results" found="0"></div>
+          </div> -->
+        </div>
+        <div class="searchInp" style="margin-block: 0 -0.25rem;">
+          <i class="fi fi-rr-search"></i>
+          <input type="text" placeholder="Search Chats....">
+        </div>
+        <div class="activeUsers" style="display: none;">
+          <!-- <div class="person">
+            <i class="fi fi-rr-plus"></i>
+            <p>Add Chat</p>
+          </div> -->
+          <div class="person active">
+            <div class="image"><img src="assets/images/faces/user1.jfif"></div>
+            <p>fanevesal</p>
+          </div>
+          <div class="person active">
+            <div class="image"><img src="assets/images/faces/user2.jfif"></div>
+            <p>jason_howel</p>
+          </div>
+          <div class="person">
+            <div class="image"><img src="assets/images/faces/user3.jfif"></div>
+            <p>bongonyoso_tz</p>
+          </div>
+          <div class="person">
+            <div class="image"><img src="assets/images/faces/user0.jfif"></div>
+            <p>chakechake</p>
+          </div>
+        </div>
+        <div class="convoContainer">
+          <!-- <h3 style="margin-left: var(--minimal-padding);color: var(--bc-shader);font-size: var(--font-xs);margin-bottom: var(--average-padding);">Chats</h3> -->
+          <!-- <div class="title">
+            <h4>Chats</h4>
+            <i class="fi fi-rr-menu-dots"></i>
+          </div> -->
+          <div class="allChats">
+            <div class="chatCard">
+              <div class="details">
+                <img src="assets/images/faces/user0.jfif">
+                <div class="data">
+                  <div class="nameTime jstCnt">
+                    <h2>Pemba Chakechake</h2>
+                    <p class="time">02:11</p>
+                  </div>
+                  <div class="msgSize jstCnt">
+                    <!-- p has the i tag if the last message was sent -->
+                    <p><i class="fi fi-rr-check-double"></i> Please send me the discount coupon so I can...</p>
+                    <span>0</span>
+                  </div>
+                </div>
+              </div>
+              <i class="fi fi-rr-trash delete"></i>
+            </div>
+            <div class="chatCard active">
+              <div class="details">
+                <img src="assets/images/faces/user2.jfif">
+                <div class="data">
+                  <div class="nameTime jstCnt">
+                    <h2>Michael howel</h2>
+                    <p class="time">02:11</p>
+                  </div>
+                  <div class="msgSize jstCnt">
+                    <p>Thanks for your service I recieved the prod...</p>
+                    <span>2</span>
+                  </div>
+                </div>
+              </div>
+              <i class="fi fi-rr-trash delete"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pageee profileView">
+        <div class="starBox">
+          <script>
+            def(()=>{
+              let starBox = get('.starBox');
+              starBox.classList.toggle('visible');
+              let observer = new IntersectionObserver((entries)=>{
+                entries.forEach(entry=>{starBox.classList.toggle('visible')})
+              });
+              observer.observe(starBox);
+
+              for (let s = 0; s < 40; s++) {
+                let star = document.createElement("i");
+                star.className = "fi fi-rr-medical-star";
+                starBox.append(star);
+                star.style.animationDuration = `${Math.random()*5 + 4}s`;
+              }
+            })
+          </script>
+        </div>
+        <div class="userData">
+          <img src="assets/images/faces/user0.jfif" class="profilePhoto" alt="">
+          <div class="dataDsp">
+            <div class="data">
+              <h2>John Doe</h2>
+              <p>@johnathan_ddg <img src="assets/images/badges/blue.png" alt=""></p>
+            </div>
+            <div class="call2action">
+              <!-- <i class="fi fi-rr-paper-plane"></i> -->
+              <!-- <i class="fi fi-rr-settings"></i> -->
+              <i class="fi fi-rr-shop" onclick="getFloater('.myShop')"></i>
+              <i class="fi fi-rr-user-gear" onclick="getFloater('.accountSettings')" style="background-color: var(--charcoal-black); color: var(--bone-white);"></i>
+              <!-- <div class="default-btn" onclick="this.classList.toggle('load')">follow</div> -->
+            </div>
+          </div>
+          <p class="biography">😎orem ipsum dolor sit amet consectetur adipisicing elit. Saepe sunt, praesentium soluta quam nulla iure volupta alias... <b>more</b></p>
+        </div>
+        <div class="userStats">
+          <p size="120k">followers</p>
+          <p size="1,500">sold products</p>
+          <p size="3.5">rating</p>
+        </div>
+        <div class="sliderSelect">
+          <div class="slider resultOpt" active="0">
+            <p class="select">Products</p>
+            <p class="select">live auctions</p>
+            <p class="select">Winga Reposts</p>
+          </div>
+        </div>
+
+        <div class="sltList">
+          <div class="quickList">
+            <div class="miniPost">
+              <p class="price" old="200k" cr="tsh.">149.9k</p>
+              <div class="call2act">
+                <i class="fi fi-sr-heart"></i>
+                <i class="fi fi-rr-share"></i>
+                <i class="fi fi-rr-bookmark"></i>
+                <i class="fi fi-rr-stats"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          function retrieveProfileData(){
+            let profileView = get('.profileView');
+            let profilePhoto = profileView.querySelector('.profilePhoto');
+            let userName = profileView.querySelector('.dataDsp .data h2');
+            let userHandle = profileView.querySelector('.dataDsp .data p');
+            let userBio = profileView.querySelector('.biography');
+            let userFollowers = profileView.querySelector('.userStats p:nth-child(1)');
+            let userSold = profileView.querySelector('.userStats p:nth-child(2)');
+            let userRating = profileView.querySelector('.userStats p:nth-child(3)');
+
+            let storedProfile = localStorage.getItem('auth');
+            if(storedProfile){
+              let profileData = JSON.parse(storedProfile).user;
+              profilePhoto.src = profileData.profile.avatar_url || 'assets/images/default.png';
+              userName.textContent = profileData.name || 'User Sokoni';
+              userHandle.textContent = `@${profileData.handle || 'john_doe'}`;
+              userBio.innerHTML = profileData.bio ? (profileData.bio.length > 100 ? profileData.bio.slice(0, 100) + '... <b>more</b>' : profileData.bio) : 'No biography available. <b>more</b>';
+              userFollowers.setAttribute('size', profileData.followers || '0');
+              userFollowers.textContent = `${profileData.followers || '0'} followers`;
+              userSold.setAttribute('size', profileData.soldProducts || '0');
+              userSold.textContent = `${profileData.soldProducts || '0'} sold products`;
+              userRating.setAttribute('size', profileData.rating || '0');
+              userRating.textContent = `${profileData.rating || '0'} rating`;
+            }
+          }
+        </script>
+      </div>
+
+      <div class="page notify">
+        <div class="header">
+          <h2>Notifications</h2>
+          <i class="fi fi-rr-"></i>
+        </div>
+        <div class="notiList">
+          <h3>New</h3>
+          <div class="notiCont active">
+            <div class="profileStatus">
+              <img src="assets/images/faces/user0.jfif">
+              <img src="assets/images/faces/user2.jfif">
+              <i class="fi fi-sr-heart"></i>
+            </div>
+            <div class="timeTitle">
+              <h5><b>Gabriella Spencer</b> has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+              <p>8m ago</p>
+            </div>
+          </div>
+          <div class="notiCont active">
+            <div class="profileStatus">
+              <img src="assets/images/faces/user1.jfif">
+              <i class="fi fi-sr-calendar"></i>
+            </div>
+            <div class="timeTitle">
+              <h5>Lorem ipsum dolor sit amet consectetur adipisicing elit. Eos officia quo quas nulla! Error, labore explicabo.</h5>
+              <p>8m ago</p>
+            </div>
+            <img src="assets/images/products/iphone2.jfif" class="postImg">
+          </div>
+        </div>
+        <div class="notiList">
+          <h3>Yesterday</h3>
+          <div class="notiCont">
+            <div class="profileStatus">
+              <img src="assets/images/faces/user2.jfif">
+              <i class="fi fi-sr-play"></i>
+            </div>
+            <div class="timeTitle">
+              <h5>Gabriella Spencer has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+              <p>8m ago</p>
+            </div>
+          </div>
+          <div class="notiCont">
+            <div class="profileStatus">
+              <img src="assets/images/faces/user3.jfif">
+              <i class="fi fi-sr-heart"></i>
+            </div>
+            <div class="timeTitle">
+              <h5>Gabriella Spencer has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+              <p>8m ago</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page shoppingCart">
+        <div class="header">
+          <!-- <i class="fi fi-rr-angle-small-left"></i> -->
+          <h2>Cart</h2>
+          <h2>Tzs. 10,000/-</h2>
+        </div>
+        <div class="searchInp">
+          <i class="fi fi-rr-search"></i>
+          <input type="text" placeholder="Search Cart....">
+        </div>
+        <div class="cartList">
+          <div class="cartItem">
+            <i class="fi fi-rr-check selectToggle" onclick="tgActive(this)"></i>
+            <img src="assets/images/products/iphone1.jfif">
+            <div class="data">
+              <div class="profile">
+                <img src="assets/images/faces/user10.jfif" alt="">
+                <div>
+                  <h4>fashonista_og <img src="assets/images/badges/blue.png"></h4>
+                  <p>Dodoma, Tanzania</p>
+                </div>
+              </div>
+              <h3>iPhone 13 Plain | DM & BM</h3>
+              <p class="details">Purple, 256GB</p>
+              <div class="priceQty">
+                <p class="price">Tsh.250,000</p>
+                <p class="qty">
+                  <i class="fi fi-rr-minus-small"></i>
+                  <span>1</span>
+                  <i class="fi fi-rr-plus-small"></i>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="cartItem">
+            <i class="fi fi-rr-check selectToggle active"></i>
+            <img src="assets/images/products/biryani1.jfif">
+            <div class="data">
+              <div class="profile">
+                <img src="assets/images/faces/user9.jfif" alt="">
+                <div>
+                  <h4>misosi_bryan <img src="assets/images/badges/gold.png"></h4>
+                  <p>Dodoma, Tanzania</p>
+                </div>
+              </div>
+              <h3>Roasted Biryani | Home Made</h3>
+              <p class="details">Chicken, Beef, Masala</p>
+              <div class="priceQty">
+                <p class="price">TSH.10,000</p>
+                <p class="qty">
+                  <i class="fi fi-rr-minus-small"></i>
+                  <span>1</span>
+                  <i class="fi fi-rr-plus-small"></i>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="call2action" style="display: none;">
+          <div class="couponInput">
+            <input type="text" spellcheck="false" placeholder="Enter Coupon Code" enterkeyhint="done">
+            <div class="default-btn applyCoupon">Apply</div>
+          </div>
+
+          <p class="tag" amount="TZS.10,000/-">Selected Total</p>
+          <p class="tag" amount="TZS.25,000/-">Shipping</p>
+          <p class="tag" amount="TZS.500/-">Tax</p>
+          <p class="tag" amount="- TZS.10,000/-">Discount</p>
+          <p class="tag total" amount="TZS.25,500/-">Total Amount</p>
+          <div class="slider-btn" fn="openCheck">checkout</div>
+        </div>
+        <div class="call2action" style="border: none;"><div class="slider-btn" fn="openCheck">checkout</div></div>
+      </div>
+
+      <div class="page wishlistPanel">
+        <div class="header">
+            <i class="fi fi-rr-arrow-small-left" onclick="shutPop('.wishlistPanel')"></i>
+            <h2>My Wishlist</h2>
+        </div>
+        <div class="wishlistList empty">
+            <!-- Wishlist items will be rendered here by applyWishlistData() -->
+        </div>
+      </div>
+
+      <div class="page profileBase accountSettings">
+        <h1>Profile Settings</h1>
+        <div class="searchInp">
+          <i class="fi fi-rr-search"></i>
+          <input type="text" placeholder="Search Settings....">
+        </div>
+
+        <div class="toggleCont clientData" onclick="loadMyProfile();getFloater('.updateProfile')">
+          <i class="fi fi-rr-circle-user type"></i>
+          <div class="data">
+            <h4 txt="new">Personal Information</h4>
+            <p><span>Update</span> your personal details like name, username, email, and phone number to keep your account information current.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont supplierData last" onclick="loadMyProfile();getFloater('.updateProfile')">
+          <i class="fi fi-rr-house-building type"></i>
+          <div class="data">
+            <h4 txt="new">Business Information</h4>
+            <p>Update your <span>Business</span> details like Shop Name, Shop Type,  to keep your account information current.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+
+        <h3>General</h3>
+        <div class="toggleCont supplierData" onclick="loadInventory();getFloater('.myInventory')">
+          <i class="fi fi-rr-boxes type"></i>
+          <div class="data">
+            <h4 txt="new">My Inventory</h4>
+            <p>View, Create & Manage <span>Your Products</span>, Update your Inventory frequently to syncronize with the system and avoid System delays & Product banning.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont supplierData" onclick="loadClientsOrders();getFloater('.clientsOrders');">
+          <i class="fi fi-rr-shopping-cart-buyer type"></i>
+          <div class="data">
+            <h4 txt="new">Costumer Orders</h4>
+            <p>View and manage orders <span>from your costumers</span>, and handle returns all in one place. Stay updated with real-time notifications on your order status.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont" onclick="loadMyOrders();getFloater('.myOrders')">
+          <i class="fi fi-rr-order-history type"></i>
+          <div class="data">
+            <h4 txt="new">My Orders</h4>
+            <p>View and manage your orders, <span>track shipments</span>, and handle returns all in one place. Stay updated with real-time notifications on your order status.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont supplierData" onclick="getFloater('.comingSoon')">
+          <i class="fi fi-rr-growth-chart-invest type"></i>
+          <div class="data">
+            <h4 txt="new">Sales Analytics</h4>
+            <p>Understand the market structure for your products, Analyse Likes, Sales & Reviews with our <span>Automated</span> AI system. Let us tell you what your costumers want.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont" onclick="getFloater('.paymentMethods')">
+          <i class="fi fi-rr-wallet type"></i>
+          <div class="data">
+            <h4 txt="new">Wallet & Payment Methods</h4>
+            <p>Manage your saved payment methods, add new <span>credit/debit</span> cards, and set your preferred payment option for a seamless checkout experience.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont last" onclick="showLocations();getFloater('.myAddresses')">
+          <i class="fi fi-rr-map-marker type"></i>
+          <div class="data">
+            <h4 txt="new">My Addresses</h4>
+            <p>View and manage your saved <span>shipping addresses</span>. Add new locations or edit existing ones to ensure your orders are delivered to the right place.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+
+        <h3>Notification</h3>
+        <div class="toggleCont">
+          <i class="fi fi-rr-bell type"></i>
+          <div class="data">
+            <h4 txt="new">Activity Notifications</h4>
+            <p>Enable or disable push notifications for <span>real-time</span> updates about likes, saves and comments on your posts</p>
+          </div>
+          <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+        </div>
+        <div class="toggleCont">
+          <i class="fi fi-rr-party-horn type"></i>
+          <div class="data">
+            <h4 txt="new">Promotions & Offers</h4>
+            <p>Get push notifications whenever there are offers dedicated for your liking.</p>
+          </div>
+          <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+        </div>
+        <div class="toggleCont last">
+          <i class="fi fi-rr-comment-alt type"></i>
+          <div class="data">
+            <h4 txt="new">Direct Email Notification</h4>
+            <p>Get notified via email for <span>important</span> account activities like password changes, login alerts, and security updates.</p>
+          </div>
+          <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+        </div>
+
+        <h3>Appearance & Preferences</h3>
+        <div class="toggleCont">
+          <i class="fi fi-rr-moon-stars type"></i>
+          <div class="data">
+            <h4 txt="new">Dark Mode</h4>
+            <p>Reduce eye strain and improve readability in <span>low-light</span> environments by switching to Dark Mode.</p>
+          </div>
+          <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+        </div>
+        <div class="toggleCont last">
+          <i class="fi fi-rr-globe type"></i>
+          <div class="data">
+            <h4 txt="new">Language & Region</h4>
+            <p>Set your preferred language and region to customize your shopping <span>experience</span> and see relevant content.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+
+        <h3>Account & Support</h3>
+        <div class="toggleCont" onclick="getFloater('.KYCSubmission')">
+          <i class="fi fi-rr-memo-circle-check type"></i>
+          <div class="data">
+            <h4 txt="new">KYC & Account Verification</h4>
+            <p>Check your KYC submission status, Request <span>Verification</span> & Update your KYC data</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont">
+          <i class="fi fi-rr-parachute-box type"></i>
+          <div class="data">
+            <h4 txt="new">Help Center</h4>
+            <p>Access FAQs, guides, and <span>support</span> resources to help you navigate and troubleshoot common issues.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont">
+          <i class="fi fi-rr-error-bug type"></i>
+          <div class="data">
+            <h4 txt="new">Report a Problem</h4>
+            <p>Report bugs, glitches, or any issues you encounter while using the app to help us improve your experience.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont">
+          <i class="fi fi-rr-terms-info type"></i>
+          <div class="data">
+            <h4 txt="new">Terms & Privacy</h4>
+            <p>Review our updated Terms of Service and Privacy Policy to stay informed about your rights and our practices.</p>
+          </div>
+          <i class="fi fi-rr-angle-small-right show"></i>
+        </div>
+        <div class="toggleCont" onclick="getPop('.logOutConfirm')">
+          <i class="fi fi-rr-house-leave type" style="color: var(--bright-red);"></i>
+          <div class="data">
+            <h4 txt="new" style="color: var(--bright-red);">Log Out</h4>
+            <p>Securely log out of your account to protect your personal information and ensure your account's safety.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-navigation">
+      <i class="fi fi-sr-apps exploreReload active"></i>
+      <i class="fi fi-rr-messages" onclick="displayConversations();"></i>
+      <i class="fi fi-rr-bell"></i>
+      <i class="fi fi-rr-shopping-cart" onclick="applyCartData()"></i>
+       <i class="fi fi-rr-heart wishlistCounter" onclick="getFloater('.wishlistPanel')"></i>
+      <i class="fi fi-rr-user"></i>
+    </div>
+  </div>
+</section>
+
+<div class="floater-pages nativeNavigation">
+  <div class="page myInventory profileBase">
+    <h1>My Inventory</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Products....">
+    </div>
+
+    <div class="sltList">
+      <div class="quickList">
+        <div class="miniPost">
+          <p class="price" old="200k" cr="tsh.">149.9k</p>
+          <div class="call2act">
+            <i class="fi fi-rr-copy"></i>
+            <i class="fi fi-rr-edit"></i>
+            <i class="fi fi-rr-trash"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <i class="fi fi-rr-plus-small createNew" onclick="getFloater('.productCreate')"></i>
+  </div>
+
+  <div class="page profileBase myOrders">
+    <h1>My Orders</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Orders....">
+    </div>
+    <div class="ordersCont">
+      <div class="order">
+        <div class="postHead">
+          <div class="leftData">
+            <img onclick="getFloater('.profileView')" src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+            <div class="userData">
+              <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+              <div class="group">
+                <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+              </div>
+            </div>
+          </div>
+          <p class="el-status pending">pending</p>
+        </div>
+        <div class="productsSummary">
+          <div class="images">
+            <img src="assets/images/products/iphone0.jfif" alt="">
+            <img src="assets/images/products/pods2.jfif" alt="">
+            <img src="assets/images/products/iphone3.jfif" alt="">
+          </div>
+          <p class="total"><span>20</span>  Products</p>
+        </div>
+        <div class="productsList">
+          <div class="prd">
+            <img src="assets/images/products/iphone1.jfif" alt="">
+            <div class="data">
+              <h4>iPhone 13 | Full Box</h4>
+              <p>white, Brand New</p>
+            </div>
+            <p class="total"><span>1</span> Items</p>
+          </div>
+          <div class="prd">
+            <img src="assets/images/products/pods2.jfif" alt="">
+            <div class="data">
+              <h4>AirPods 2 | Full Box</h4>
+              <p>white, Brand New</p>
+            </div>
+            <p class="total"><span>5</span> Items</p>
+          </div>
+        </div>
+        <div class="call2act">
+          <div class="default-btn">Order Ready</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileBase clientsOrders">
+    <h1>Clients Orders</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Orders....">
+    </div>
+    <div class="ordersCont">
+      <div class="order">
+        <div class="postHead">
+          <div class="leftData">
+            <img onclick="getFloater('.profileView')" src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+            <div class="userData">
+              <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+              <div class="group">
+                <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+              </div>
+            </div>
+          </div>
+          <p class="el-status pending">pending</p>
+        </div>
+        <div class="productsSummary">
+          <div class="images">
+            <img src="assets/images/products/iphone0.jfif" alt="">
+            <img src="assets/images/products/pods2.jfif" alt="">
+            <img src="assets/images/products/iphone3.jfif" alt="">
+          </div>
+          <p class="total"><span>20</span>  Products</p>
+        </div>
+        <div class="productsList">
+          <div class="prd">
+            <img src="assets/images/products/iphone1.jfif" alt="">
+            <div class="data">
+              <h4>iPhone 13 | Full Box</h4>
+              <p>white, Brand New</p>
+            </div>
+            <p class="total"><span>1</span> Items</p>
+          </div>
+          <div class="prd">
+            <img src="assets/images/products/pods2.jfif" alt="">
+            <div class="data">
+              <h4>AirPods 2 | Full Box</h4>
+              <p>white, Brand New</p>
+            </div>
+            <p class="total"><span>5</span> Items</p>
+          </div>
+        </div>
+        <div class="call2act">
+          <div class="default-btn">Order Ready</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileBase paymentMethods">
+    <h1>Wallet</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Transactions....">
+    </div>
+    <div class="balanceSect">
+      <div class="title">
+        <h3>Balance</h3>
+        <i class="fi fi-rr-refresh"></i>
+      </div>
+      <h1 after=".00/-" currency="Tsh." class="escrowBalance">5,000</h1>
+      <div class="paymentMethods">
+        <div class="method">
+          <i class="fi fi-rr-credit-card"></i>
+          <div class="data">
+            <h4>Visa **** 1234</h4>
+            <p>fanevesal peter</p>
+          </div>
+          <i class="fi fi-rr-pencil"></i>
+        </div>
+        <div class="method">
+          <i class="fi fi-rr-mobile-notch"></i>
+          <div class="data">
+            <h4>Yas **** 76-122</h4>
+            <p>fanevesal mgendi</p>
+          </div>
+          <i class="fi fi-rr-pencil"></i>
+        </div>
+        <i class="fi fi-rr-plus-small addPayment" onclick="getPop('.addPayment')"></i>
+      </div>
+    </div>
+    <div class="advertise" style="padding: 0;display: flex;">
+      <div class="ad">
+        <img src="assets/images/sokoin.png" alt="">
+        <div class="data">
+          <h2>Get up to <span>-40%</span></h2>
+          <p>Discounts, when you buy with <b>Sokoin</b>, The most secure Crypto Currency System in the World</p>
+        </div>
+      </div>
+    </div>
+    <h3>Transaction History</h3>
+    <div class="transactionHistory">
+      <div class="transaction">
+        <i class="fi fi-sr-shopping-cart-check"></i>
+        <div class="data">
+          <h4>Order - Mwanaidi Shabani</h4>
+          <p>12nd April, 2025</p>
+        </div>
+        <p class="amount" value="+">20,000/-</p>
+      </div>
+      <div class="transaction">
+        <i class="fi fi-sr-money-wings"></i>
+        <div class="data">
+          <h4>Withdraw via YAS Mobile</h4>
+          <p>10th April, 2025</p>
+        </div>
+        <p class="amount" value="-">5,500/-</p>
+      </div>
+    </div>
+    <div class="call2action" style="position: sticky;bottom: 0rem;z-index: 1;">
+      <div class="slider-btn" fn="openWithdraw">withdraw</div>
+    </div>
+  </div>
+
+  <div class="page profileBase myAddresses">
+    <h1>My Addresses</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Addresses....">
+    </div>
+    <div class="addressList">
+      <div class="address">
+        <i class="fi fi-sr-marker"></i>
+        <div class="data">
+          <p>1234, Mlimani City, Dar-es-salaam, Tanzania</p>
+          <h4>Home Address</h4>
+        </div>
+        <i class="fi fi-rr-refresh"></i>
+        <i class="fi fi-rr-pencil"></i>
+      </div>
+    </div>
+    <i class="fi fi-rr-plus-small createNew" onclick="getPop('.createNewAddress')"></i>
+  </div>
+
+
+
+  <!-- Order handling UI -->
+  <!-- Order handling UI -->
+  <!-- Order handling UI -->
+  <!-- Order handling UI -->
+
+
+
+  <div class="page termsConditions">
+    <h1>Terms and Conditions, Sokoni Africa</h1>
+
+    <h2>1. User Responsibilikties and Account Obligations</h2>
+    <p>By creating an account and accessing Sokoni Africa, users agree to act responsibly, truthfully, and in compliance with all applicable laws. Each user is responsible for the accuracy of the information provided during registration and throughout their usage of the platform. This includes ensuring that their name, contact details, and business information are accurate and up to date. Users must safeguard their login credentials and may not share them with others or allow unauthorized access to their accounts. If suspicious activity is detected, the user must immediately report it to Sokoni Africa’s support team. Users are expected to use Sokoni Africa only for lawful purposes such as buying, selling, and promoting products or services in accordance with the platform’s objectives. Misuse of the platform, including but not limited to fraud, false representation, intellectual property infringement, or the distribution of illegal goods, will result in account suspension or termination without notice. Users must also respect the community by avoiding harassment, offensive language, or attempts to exploit loopholes within the system. Sokoni Africa provides a trusted marketplace for buyers, sellers, and drivers, and any breach of trust affects the integrity of the entire network. Each user, whether individual or business, has a duty to maintain professionalism, honesty, and fairness in interactions with other users. Multiple accounts created for the purpose of manipulation, spamming, or exploitation are strictly prohibited and will be flagged. Users also acknowledge that they are responsible for any activities conducted through their account, whether by themselves or others using their credentials. Failure to comply with these responsibilities may expose users to civil liability or legal claims from affected parties. By agreeing to these terms, users confirm that they understand the importance of trust and accountability in maintaining a thriving digital marketplace. Non-compliance will not only affect the individual but may also disrupt the broader Sokoni Africa community, and the platform reserves the right to take any necessary actions to protect the ecosystem. Rule Version 1.0.</p>
+
+    <h2>2. Payment Terms and Financial Transactions</h2>
+    <p>All payments and financial transactions conducted through Sokoni Africa must adhere strictly to the platform’s rules and guidelines. Sellers are responsible for setting accurate prices for their products and services, while buyers must ensure they review details before making payments. Sokoni Africa facilitates these transactions using secure payment channels, but it does not assume responsibility for mistakes made by either party in the process. Refunds, cancellations, or disputes will be subject to the resolution procedures outlined herein, and users must provide complete transparency when addressing such matters. Any attempt to manipulate or bypass Sokoni Africa’s payment systems, including fraudulent refunds, chargebacks, or the use of stolen financial information, is strictly prohibited and may result in legal consequences. Users acknowledge that transaction fees may be applied to payments, and such charges are non-refundable unless otherwise stated. Sellers are also obligated to deliver goods or services as promised, ensuring quality standards and timely fulfillment. Failure to deliver may result in withheld payments or account suspension. Buyers are equally required to honor their payment commitments, and false claims intended to secure unfair refunds will not be tolerated. Sokoni Africa does not provide financial services outside the scope of its secure channels, and users are discouraged from attempting side transactions that bypass the system, as these will not be protected. Both buyers and sellers agree to resolve financial disputes in good faith, using evidence and communication to reach fair solutions. Sokoni Africa may intervene in unresolved disputes and has the authority to withhold or release payments based on verified facts. By using Sokoni Africa’s financial systems, users agree to uphold honesty, fairness, and trustworthiness in all dealings. Violations of payment terms undermine confidence in the platform and will result in strict action, including permanent account bans. Rule Version 1.0.</p>
+
+    <h2>3. Content, Intellectual Property, and Product Listings</h2>
+    <p>Sokoni Africa values originality and integrity in all content uploaded to the platform. Users may only post product images, descriptions, and promotional materials that they own or have explicit rights to use. Unauthorized use of copyrighted material, trademarks, or branding belonging to others without permission is strictly forbidden. Product listings must provide clear, truthful, and comprehensive descriptions, including pricing, quality, specifications, and availability, to avoid misleading buyers. Misrepresentation of products or deliberate concealment of defects may lead to immediate removal of listings, refund obligations, and possible legal actions. Sellers are encouraged to maintain transparency about their goods and services in order to build trust and credibility with buyers. Users grant Sokoni Africa a non-exclusive license to use uploaded content for promotional purposes, ensuring visibility within the platform and affiliated marketing campaigns, while ownership rights remain with the original creator unless otherwise agreed. Sokoni Africa reserves the right to edit, remove, or restrict any content that violates community standards, legal requirements, or intellectual property laws. Users are prohibited from posting offensive, discriminatory, misleading, or harmful materials, as these compromise the safety of the community. Listings that promote counterfeit goods, unsafe items, or banned products are not allowed and will result in penalties. Intellectual property rights will be enforced, and violators may be held liable for damages or legal claims initiated by rightful owners. Users acknowledge that high-quality, authentic, and lawful content supports the growth and reputation of both their businesses and the platform as a whole. By following these content rules, users contribute to the creation of a safe, professional, and trustworthy environment where buyers can shop with confidence and sellers can showcase their businesses effectively. Non-compliance will not only harm individual sellers but also affect the credibility of Sokoni Africa, which will not be tolerated. Rule Version 1.0.</p>
+
+    <h2>4. Privacy, Data Protection, and Platform Integrity</h2>
+    <p>Sokoni Africa is committed to safeguarding user data and ensuring that personal and business information remains private, secure, and handled responsibly. Users agree to provide accurate data at registration and throughout their engagement with the platform, and in return, Sokoni Africa pledges to protect this information using industry-standard encryption and secure storage practices. Data collected may include sokoni_identity details, contact information, transaction history, browsing behavior, and platform usage patterns, all of which are used to improve services and optimize user experience. Sokoni Africa does not share user data with unauthorized third parties, except where required by law or with explicit user consent. Users must also respect the privacy of others by not collecting, storing, or misusing personal data obtained through the platform. Any attempt to hack, manipulate, or exploit Sokoni Africa’s systems undermines the trust and safety of the entire community and will be met with immediate account termination and potential legal action. Users should also understand that while Sokoni Africa implements strong protective measures, no system is entirely immune to risks, and by participating, they accept shared responsibility in adopting secure practices such as protecting their credentials and avoiding suspicious activities. The platform may use anonymized data for analytics and improvement purposes without compromising individual privacy. Users also agree not to disrupt platform operations through spam, malicious software, or exploitation of technical loopholes. Integrity of the marketplace depends on mutual respect, honesty, and adherence to security principles, and violations will not be tolerated. Sokoni Africa reserves the right to update security measures, privacy rules, and data handling practices in line with evolving legal requirements and industry standards. Continued use of the platform signifies acceptance of these responsibilities and acknowledgment that trust is a shared duty between users and Sokoni Africa. Rule Version 1.0.</p>
+    
+    <!-- <div class="call2act">
+      <div class="default-btn" onclick="history.back()">I Agree</div>
+    </div> -->
+  </div>
+
+  <div class="page storyCreate appCamera camera-preview">
+    <video src="assets/videos/camera.mp4" autoplay loop muted></video>
+    <div class="controls">
+      <div class="adjust">
+        <i class="fi fi-sr-contrast"></i>
+        <div class="scale"><img src="assets/images/scale.png" alt=""></div>
+        <i class="fi fi-sr-brightness"></i>
+      </div>
+      <div class="lenses">
+        <p class="active">0.5</p>
+        <p>1</p>
+        <p>2.5</p>
+        <p>5</p>
+      </div>
+      <div class="cameraType" active="1">
+        <p>Photo</p>
+        <p>Potrait</p>
+        <p>Video</p>
+      </div>
+      <div class="call2action">
+        <div class="chooseImg"><input type="file" accept=".png, .jpeg" class="storyInput"></div>
+        <div class="capture"></div>
+        <i class="fi fi-sr-aperture flipCam"></i>
+      </div>
+      <div class="underMaintanance"></div>
+    </div>
+  </div>
+
+  <div class="page storyView">
+    <div class="storyLine">
+      <div class="line active" style="--timeout: 10s;"></div>
+      <div class="line" style="--timeout: 10s;"></div>
+      <div class="line" style="--timeout: 10s;"></div>
+    </div>
+    <div class="postHead storyHead">
+      <div class="leftData">
+        <img src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+        <div class="userData">
+          <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+          <div class="group">
+            <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+            <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+          </div>
+        </div>
+      </div>
+      <!-- <i class="fi fi-rr-menu-dots-vertical popAct"></i> -->
+    </div>
+    <div class="storyImg"></div>
+    <div class="descComment">
+      <p>Lorem ipsum dolor sit amet consectetur, adipisicing elit. Dolor ex itaque molestiae numquam quibusdam blanditiis atque corporis harum aperiam architecto?</p>
+      <!-- <div class="c2a">
+        <input type="text" placeholder="Send Message..." enterkeyhint="done">
+        <i class="fi fi-rr-paper-plane"></i>
+      </div> -->
+    </div>
+  </div>
+
+  <div class="page productView postView">
+    <div class="postHead">
+      <div class="leftData">
+        <img onclick="getFloater('.profileView')" src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+        <div class="userData">
+          <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+          <div class="group">
+            <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+            <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+          </div>
+        </div>
+      </div>
+      <!-- <div class="default-btn" onclick="this.classList.add('load')">follow</div> -->
+    </div>
+    <div class="startup-scroll">
+      <div class="dummy"></div>
+      <img src="assets/images/products/iphone0.jfif"/>
+      <img src="assets/images/products/iphone1.jfif"/>
+      <img src="assets/images/products/iphone2.jfif"/>
+      <img src="assets/images/products/iphone3.jfif"/>
+      <div class="dummy"></div>
+    </div>
+    <div class="scroll-nav productNav">
+      <img class="nav active" src="assets/images/products/iphone0.jfif"/>
+      <img class="nav" src="assets/images/products/iphone1.jfif"/>
+      <img class="nav" src="assets/images/products/iphone2.jfif"/>
+      <img class="nav" src="assets/images/products/iphone3.jfif"/>
+    </div>
+    <div class="postDetails">
+      <div class="postActions">
+        <i class="fi fi-sr-heart">998</i>
+        <i class="fi fi-rr-comment-alt-middle" onclick="getPop('.comments')">234</i>
+        <i class="fi fi-rr-bookmark">15</i>
+        <i class="fi fi-rr-share" onclick="sharePost(`barefawl.com`)">Share</i>
+        <i class="fi fi-rr-refer-arrow">Winga</i>
+      </div>
+      <div class="catRate">
+        <p class="category">general</p>
+        <i class="fi fi-sr-star rating">3.0</i>
+      </div>
+      <h1>iPhone 13 Plain | DM & BM</h1>
+      <div class="postTags">
+        <p>#iphone</p>
+        <p>#iphone13</p>
+        <p>#shopping</p>
+        <p>#fast_delivery</p>
+        <p>#recommended</p>
+        <p>#my_feed</p>
+        <p>#for_you_product</p>
+        <p>#tanzania</p>
+        <p>#dodoma</p>
+      </div>
+      <div class="stock">
+        <div class="people">
+          <img src="assets/images/faces/user0.jfif" alt="">
+          <img src="assets/images/faces/user1.jfif" alt="">
+          <img src="assets/images/faces/user2.jfif" alt="">
+          <p>99+ Bought</p>
+        </div>
+        <p class="remain"><b>200</b> in Stock</p>
+      </div>
+      <p class="dsc"><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos...</span> <b>more</b></p>
+      <div class="categories" style="display: none;">
+        <div class="uSelect paymentMethod">
+          <i class="fi fi-rr-angle-small-right getOpts"></i>
+
+          <!-- <div class="optSlt">
+            <i class="fi fi-sr-wallet"></i>
+            <div class="data">
+              <h4>Sokoni Wallet...uyu7sya7wq</h4>
+              <p>Balance: <span>Tzs. 500,000</span></p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div> -->
+          <div class="optSlt">
+            <i class="fi fi-sr-credit-card"></i>
+            <div class="data">
+              <h4>MasterCard...4320</h4>
+              <p>Exp 04/20/2030</p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div>
+          <div class="optSlt active">
+            <i class="fi fi-sr-smartphone"></i>
+            <div class="data">
+              <h4>Mobile Money - MixxByYas</h4>
+              <p>+255 712 276 166</p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div>
+        </div>
+        <div class="uSelect location">
+          <i class="fi fi-rr-angle-small-right getOpts"></i>
+
+          <div class="optSlt active">
+            <i class="fi fi-sr-home-location"></i>
+            <div class="data">
+              <h4>Home Location</h4>
+              <p>Iyumbu, Dodoma, Tanzania</p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div>
+          <div class="optSlt">
+            <i class="fi fi-sr-marker"></i>
+            <div class="data">
+              <h4>Additional Location</h4>
+              <p>Mwatulole, Geita, Tanzania</p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div>
+        </div>
+        <div class="uSelect logistic">
+          <i class="fi fi-rr-angle-small-right getOpts"></i>
+
+          <div class="optSlt active">
+            <img src="assets/favicon/android-chrome-512x512.png" alt="">
+            <div class="data">
+              <h4>Sokoni Africa Logistics</h4>
+              <p>Direct & Warehouse Delivery</p>
+            </div>
+            <i class="fi fi-rr-check"></i>
+          </div>
+        </div>
+      </div>
+      <div class="specsList">
+        <div class="specItem">
+          <p>Color</p>
+          <div class="selection">
+            <p class="select"><i class="fi fi-rr-check"></i> Black</p>
+            <p class="select"><i class="fi fi-rr-check"></i> White</p>
+            <p class="select"><i class="fi fi-rr-check"></i> White</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="call2act">
+      <h2 old="Tsh. 800,000/-">Tzs. 500,000/-</h2>
+      <div class="default-btn buyRightNow quickBuy">Quick Buy</div>
+      <div class="default-btn addToCart"><i class="fi fi-sr-shopping-cart-add" style="font-size: var(--font-sm);display: flex;align-items: center;"></i></div>
+    </div>
+  </div>
+
+  <div class="page productViews">
+    <div class="header">
+      <i class="fi fi-rr-angle-small-left"></i>
+      <div class="call2act">
+        <i class="fi fi-rr-comments"></i>
+        <i class="fi fi-rr-bookmark"></i>
+        <i class="fi fi-sr-heart"></i>
+      </div>
+    </div>
+    <div class="startup-scroll">
+      <div class="dummy"></div>
+      <img src="assets/images/products/iphone0.jfif"/>
+      <img src="assets/images/products/iphone1.jfif"/>
+      <img src="assets/images/products/iphone2.jfif"/>
+      <img src="assets/images/products/iphone3.jfif"/>
+      <div class="dummy"></div>
+    </div>
+    <div class="scroll-nav productNav">
+      <img class="nav" src="assets/images/products/iphone0.jfif"/>
+      <img class="nav" src="assets/images/products/iphone1.jfif"/>
+      <img class="nav" src="assets/images/products/iphone2.jfif"/>
+      <img class="nav" src="assets/images/products/iphone3.jfif"/>
+    </div>
+    <div class="productDetails">
+      <div class="title">
+        <p>General</p>
+        <!-- <p class="el-status"><i class="fi fi-sr-calendar"></i> <span>electronics</span></p> -->
+        <h1>iPhone 13 Plain | DM & BM</h1>
+        <div class="priceTag"><p>TSH.250k</p><p>TZS.400k</p></div>
+        <div class="sold">
+          <img src="assets/images/default.png">
+          <img src="assets/images/default.png">
+          <img src="assets/images/default.png">
+          <img src="assets/images/default.png">
+          <p><b>200+</b> units sold, Only <b>50</b> units <i>Remaining</i></p>
+        </div>
+        <i class="fi fi-rr-share shareAction"></i>
+      </div>
+      <p class="description">
+        <b>fanevesal <img src="assets/images/badges/gold.png"></b>
+        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Perferendis consequatur commodi inventore consectetur. Sit dolores vel quisquam ex, magnam maxime... <i>more</i></span>
+      </p>
+      <div class="blocks">
+        <div class="block">
+          <i class="fi fi-rr-quick-box"></i>
+          <i class="fi fi-rr-quick-box"></i>
+          <p>Delivery Time</p>
+          <h4>24 Hours</h4>
+        </div>
+        <div class="block">
+          <i class="fi fi-rr-hands-usd"></i>
+          <i class="fi fi-rr-hands-usd"></i>
+          <p>Waranty</p>
+          <h4>2 Years</h4>
+        </div>
+        <div class="block">
+          <i class="fi fi-rr-ranking-stars"></i>
+          <i class="fi fi-rr-ranking-stars"></i>
+          <p>Rating</p>
+          <h4>3.5 (198)</h4>
+        </div>
+      </div>
+      <div class="productCustomization">
+        <div class="data">
+          <h3 class="csTitle">colors</h3>
+          <div class="scroll-data colors">
+            <p value="red" class="active"></p>
+            <p value="blue"></p>
+            <p value="green"></p>
+            <p value="white"></p>
+            <p value="pink"></p>
+          </div>
+        </div>
+        <div class="data">
+          <h3 class="csTitle">storage</h3>
+          <div class="scroll-data">
+            <p value="pink">64GB</p>
+            <p value="blue">128GB</p>
+            <p value="red" class="active">256GB</p>
+            <p value="green">512GB</p>
+            <p value="white">1TB</p>
+            <p value="pink">2TB</p>
+            <p value="pink">4TB</p>
+          </div>
+        </div>
+      </div>
+      <div class="call2action">
+        <div class="amount">
+          <i class="fi fi-rr-minus"></i>
+          <p>01</p>
+          <i class="fi fi-rr-plus"></i>
+        </div>
+        <div class="cart-action">
+          <i class="fi fi-rr-shopping-cart-add"></i>
+          <div class="default-btn checkoutBtn">Checkout</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page messaging">
+    <div class="header" style="margin-bottom: -0.5rem;">
+      <h2>Messaging</h2>
+      <img src="assets/images/faces/user0.jfif" alt="">
+      <!-- <i class="fi fi-rr-search"></i>
+      <div class="hoveringSearch">
+        <div class="inputSect">
+          <input type="text" placeholder="Search" enterkeyhint="done">
+          <i class="fi fi-rr-search"></i>
+        </div>
+        <div class="results" found="0"></div>
+      </div> -->
+    </div>
+    <div class="searchInp" style="margin-block: 0 -0.25rem;">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Chats....">
+    </div>
+    <div class="activeUsers">
+      <div class="person">
+        <i class="fi fi-rr-plus"></i>
+        <p>Add Chat</p>
+      </div>
+      <div class="person active">
+        <div class="image"><img src="assets/images/faces/user1.jfif"></div>
+        <p>fanevesal</p>
+      </div>
+      <div class="person active">
+        <div class="image"><img src="assets/images/faces/user2.jfif"></div>
+        <p>jason_howel</p>
+      </div>
+      <div class="person">
+        <div class="image"><img src="assets/images/faces/user3.jfif"></div>
+        <p>bongonyoso_tz</p>
+      </div>
+      <div class="person">
+        <div class="image"><img src="assets/images/faces/user0.jfif"></div>
+        <p>chakechake</p>
+      </div>
+    </div>
+    <div class="convoContainer">
+      <div class="title">
+        <h4>Chats</h4>
+        <i class="fi fi-rr-menu-dots"></i>
+      </div>
+      <div class="allChats">
+        <div class="chatCard">
+          <div class="details">
+            <img src="assets/images/faces/user0.jfif">
+            <div class="data">
+              <div class="nameTime jstCnt">
+                <h2>Pemba Chakechake</h2>
+                <p class="time">02:11</p>
+              </div>
+              <div class="msgSize jstCnt">
+                <!-- p has the i tag if the last message was sent -->
+                <p><i class="fi fi-rr-check-double"></i> Please send me the discount coupon so I can...</p>
+                <span>0</span>
+              </div>
+            </div>
+          </div>
+          <i class="fi fi-rr-trash delete"></i>
+        </div>
+        <div class="chatCard active">
+          <div class="details">
+            <img src="assets/images/faces/user2.jfif">
+            <div class="data">
+              <div class="nameTime jstCnt">
+                <h2>Michael howel</h2>
+                <p class="time">02:11</p>
+              </div>
+              <div class="msgSize jstCnt">
+                <p>Thanks for your service I recieved the prod...</p>
+                <span>2</span>
+              </div>
+            </div>
+          </div>
+          <i class="fi fi-rr-trash delete"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page notify">
+    <div class="header">
+      <h2>Notifications</h2>
+      <i class="fi fi-rr-"></i>
+    </div>
+    <div class="notiList">
+      <h3>New</h3>
+      <div class="notiCont active">
+        <div class="profileStatus">
+          <img src="assets/images/faces/user0.jfif">
+          <img src="assets/images/faces/user2.jfif">
+          <i class="fi fi-sr-heart"></i>
+        </div>
+        <div class="timeTitle">
+          <h5><b>Gabriella Spencer</b> has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+          <p>8m ago</p>
+        </div>
+      </div>
+      <div class="notiCont active">
+        <div class="profileStatus">
+          <img src="assets/images/faces/user1.jfif">
+          <i class="fi fi-sr-calendar"></i>
+        </div>
+        <div class="timeTitle">
+          <h5>Lorem ipsum dolor sit amet consectetur adipisicing elit. Eos officia quo quas nulla! Error, labore explicabo.</h5>
+          <p>8m ago</p>
+        </div>
+        <img src="assets/images/products/iphone2.jfif" class="postImg">
+      </div>
+    </div>
+    <div class="notiList">
+      <h3>Yesterday</h3>
+      <div class="notiCont">
+        <div class="profileStatus">
+          <img src="assets/images/faces/user2.jfif">
+          <i class="fi fi-sr-play"></i>
+        </div>
+        <div class="timeTitle">
+          <h5>Gabriella Spencer has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+          <p>8m ago</p>
+        </div>
+      </div>
+      <div class="notiCont">
+        <div class="profileStatus">
+          <img src="assets/images/faces/user3.jfif">
+          <i class="fi fi-sr-heart"></i>
+        </div>
+        <div class="timeTitle">
+          <h5>Gabriella Spencer has posted a new story, check it out lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</h5>
+          <p>8m ago</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page shoppingCart">
+    <div class="header">
+      <!-- <i class="fi fi-rr-angle-small-left"></i> -->
+      <h2>Cart</h2>
+      <h2>Tzs. 10,000/-</h2>
+    </div>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Cart....">
+    </div>
+    <div class="cartList">
+      <div class="cartItem">
+        <i class="fi fi-rr-check selectToggle" onclick="tgActive(this)"></i>
+        <img src="assets/images/products/iphone1.jfif">
+        <div class="data">
+          <div class="profile">
+            <img src="assets/images/faces/user10.jfif" alt="">
+            <div>
+              <h4>fashonista_og <img src="assets/images/badges/blue.png"></h4>
+              <p>Dodoma, Tanzania</p>
+            </div>
+          </div>
+          <h3>iPhone 13 Plain | DM & BM</h3>
+          <p class="details">Purple, 256GB</p>
+          <div class="priceQty">
+            <p class="price">Tsh.250,000</p>
+            <p class="qty">
+              <i class="fi fi-rr-minus-small"></i>
+              <span>1</span>
+              <i class="fi fi-rr-plus-small"></i>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="cartItem">
+        <i class="fi fi-rr-check selectToggle active"></i>
+        <img src="assets/images/products/biryani1.jfif">
+        <div class="data">
+          <div class="profile">
+            <img src="assets/images/faces/user9.jfif" alt="">
+            <div>
+              <h4>misosi_bryan <img src="assets/images/badges/gold.png"></h4>
+              <p>Dodoma, Tanzania</p>
+            </div>
+          </div>
+          <h3>Roasted Biryani | Home Made</h3>
+          <p class="details">Chicken, Beef, Masala</p>
+          <div class="priceQty">
+            <p class="price">TSH.10,000</p>
+            <p class="qty">
+              <i class="fi fi-rr-minus-small"></i>
+              <span>1</span>
+              <i class="fi fi-rr-plus-small"></i>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="call2action" style="display: none;">
+      <div class="couponInput">
+        <input type="text" spellcheck="false" placeholder="Enter Coupon Code" enterkeyhint="done">
+        <div class="default-btn applyCoupon">Apply</div>
+      </div>
+
+      <p class="tag" amount="TZS.10,000/-">Selected Total</p>
+      <p class="tag" amount="TZS.25,000/-">Shipping</p>
+      <p class="tag" amount="TZS.500/-">Tax</p>
+      <p class="tag" amount="- TZS.10,000/-">Discount</p>
+      <p class="tag total" amount="TZS.25,500/-">Total Amount</p>
+      <div class="slider-btn" fn="openCheck">checkout</div>
+    </div>
+    <div class="call2action" style="border: none;"><div class="slider-btn" fn="openCheck">checkout</div></div>
+  </div>
+
+  <div class="page searchResults">
+    <div class="header">
+      <!-- <i class="fi fi-rr-searc holder"></i> -->
+      <!-- <img src="assets/images/logo.png" alt=""> -->
+      <h2 class="filtered">112k Results</h2>
+      <div class="call2act">
+        <i class="fi fi-rr-settings-sliders" ontouchend="getPop('.filterSort')"></i>
+      </div>
+    </div>
+    <p class="resultsFor">Showing Results for <b>"Search Query"</b></p>
+    <!-- <div class="sliderSelect">
+      <div class="slider resultOpt" active="2">
+        <p class="select">accounts (101k)</p>
+        <p class="select">live sales (15)</p>
+        <p class="select">products (12k)</p>
+      </div>
+    </div> -->
+    <div class="resultsList" style="display: none;">
+      <div class="accountsList miniPages"></div>
+      <div class="livesList miniPages">
+        <div class="postList loaderCont">
+          <div class="loadCont live">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+          <div class="loadCont live">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+          <div class="loadCont live">
+            <div class="main">
+              <p class="down"></p>
+            </div>
+            <div class="text c2a"></div>
+            <div class="text"></div>
+            <div></div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+      <div class="postList miniPages">
+          <div class="postCont">
+            <div class="post" style="background-image: url(assets/images/products/iphone0.jfif);">
+              <div class="postHead">
+                <div class="leftData">
+                  <img src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+                  <div class="userData">
+                    <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+                    <div class="group">
+                      <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                      <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                    </div>
+                  </div>
+                </div>
+                <i class="fi fi-rr-menu-dots-vertical popAct"></i>
+              </div>
+              <div class="postActions">
+                <i class="fi fi-sr-heart">998</i>
+                <i class="fi fi-rr-comment-alt-middle">234</i>
+                <i class="fi fi-rr-paper-plane"></i>
+                <i class="fi fi-rr-bookmark"></i>
+              </div>
+            </div>
+            <div class="postDetails">
+              <div class="postTags">
+                <p>#iphone</p>
+                <p>#iphone13</p>
+                <p>#shopping</p>
+                <p>#fast_delivery</p>
+                <p>#recommended</p>
+                <p>#my_feed</p>
+                <p>#for_you_product</p>
+                <p>#tanzania</p>
+                <p>#dodoma</p>
+              </div>
+              <h4>iPhone 13 Plain | DM & BM</h4>
+              <p><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos.</span> <b onclick="getFloater('.productView')">more</b></p>
+            </div>
+          </div>
+          <div class="postCont">
+            <div class="post" style="background-image: url(assets/images/products/pods0.jfif);">
+              <div class="postHead">
+                <div class="leftData">
+                  <img src="assets/images/faces/user2.jfif" alt="" class="profilePic active">
+                  <div class="userData">
+                    <h4>mosouth_tz <img src="assets/images/badges/blue.png"></h4>
+                    <div class="group">
+                      <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                      <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                    </div>
+                  </div>
+                </div>
+                <i class="fi fi-rr-menu-dots-vertical popAct"></i>
+              </div>
+              <div class="postActions">
+                <i class="fi fi-rr-heart">85k</i>
+                <i class="fi fi-rr-comment-alt-middle">1.1k</i>
+                <i class="fi fi-rr-paper-plane"></i>
+                <i class="fi fi-rr-bookmark"></i>
+                <!-- <i class="fi fi-sr-shopping-cart-add"></i> -->
+              </div>
+            </div>
+            <div class="postDetails">
+              <div class="postTags">
+                <p>#earphones</p>
+                <p>#luxury</p>
+                <p>#shopping</p>
+                <p>#fast_delivery</p>
+                <p>#recommended</p>
+                <p>#my_feed</p>
+                <p>#for_you_product</p>
+                <p>#tanzania</p>
+                <p>#dodoma</p>
+              </div>
+              <h4>S11 Headphones | All Colors</h4>
+              <p><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos.</span> <b>more</b></p>
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <div class="postList mainFeedPosts">
+      <div class="postCont">
+        <div class="post" style="background-image: url(assets/images/products/iphone0.jfif);">
+          <div class="postClick" onclick="getFloater('.productView')"></div>
+          <div class="postHead">
+            <div class="leftData">
+              <img onclick="getFloater('.profileView')" src="assets/images/faces/user1.jfif" alt="" class="profilePic acti">
+              <div class="userData">
+                <h4>fanevesal <img src="assets/images/badges/gold.png"></h4>
+                <div class="group">
+                  <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                  <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                </div>
+              </div>
+            </div>
+            <i class="fi fi-rr-menu-dots-vertical popAct" onclick="getPop('.optionsReport')"></i>
+          </div>
+          <h2 class="postPrice" old="Tsh. 840k">Tsh. 550,000</h2>
+          <div class="postActions">
+            <i class="fi fi-sr-heart">998</i>
+            <i class="fi fi-rr-comment-alt-middle" onclick="getPop('.comments')">234</i>
+            <!-- <i class="fi fi-rr-paper-plane"></i> -->
+            <i class="fi fi-rr-bookmark"></i>
+            <i class="fi fi-sr-star rating">3.4</i>
+          </div>
+        </div>
+        <div class="postDetails">
+          <div class="postTags">
+            <p>#iphone</p>
+            <p>#iphone13</p>
+            <p>#shopping</p>
+            <p>#fast_delivery</p>
+            <p>#recommended</p>
+            <p>#my_feed</p>
+            <p>#for_you_product</p>
+            <p>#tanzania</p>
+            <p>#dodoma</p>
+          </div>
+          <h4 onclick="getFloater('.productView')">iPhone 13 Plain | DM & BM</h4>
+          <p onclick="getPop('.description')"><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos...</span> <b>more</b></p>
+        </div>
+        <h1 class="postAd">Sponsored</h1>
+      </div>
+      <div class="postCont">
+        <div class="post" style="background-image: url(assets/images/products/pods0.jfif);">
+          <div class="postClick" onclick="getFloater('.productView')"></div>
+          <div class="postHead">
+            <div class="leftData">
+              <img src="assets/images/faces/user2.jfif" alt="" class="profilePic active">
+              <div class="userData">
+                <h4>mosouth_tz <img src="assets/images/badges/blue.png"></h4>
+                <div class="group">
+                  <p><i class="fi fi-sr-marker"></i> Dodoma, Tanzania</p>
+                  <p><i class="fi fi-sr-calendar"></i> 12nd April, 2025</p>
+                </div>
+              </div>
+            </div>
+            <i class="fi fi-rr-menu-dots-vertical popAct"></i>
+          </div>
+          <h2 class="postPrice" old="Tsh. 440k">Tsh. 120,000</h2>
+          <div class="postActions">
+            <i class="fi fi-sr-heart">998</i>
+            <i class="fi fi-rr-comment-alt-middle">234</i>
+            <!-- <i class="fi fi-rr-paper-plane"></i> -->
+            <i class="fi fi-rr-bookmark"></i>
+            <i class="fi fi-sr-star rating">3.4</i>
+          </div>
+        </div>
+        <div class="postDetails">
+          <div class="postTags">
+            <p>#earphones</p>
+            <p>#luxury</p>
+            <p>#shopping</p>
+            <p>#fast_delivery</p>
+            <p>#recommended</p>
+            <p>#my_feed</p>
+            <p>#for_you_product</p>
+            <p>#tanzania</p>
+            <p>#dodoma</p>
+          </div>
+          <h4>S11 Headphones | All Colors</h4>
+          <p><b>@fanevesal</b> <span en="" sw="">straight from dubai the phone comes with zero damages Lorem ipsum dolor, sit amet consectetur adipisicing elit. Inventore, quos.</span> <b>more</b></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileView otherUsersProfile">
+    <div class="starBox">
+      <script>
+        def(()=>{
+          let starBox = get('.floater-pages .starBox');
+          starBox.classList.toggle('visible')
+          let observer = new IntersectionObserver((entries)=>{
+            entries.forEach(entry=>{starBox.classList.toggle('visible')})
+          });
+          observer.observe(starBox);
+
+          for (let s = 0; s < 40; s++) {
+            let star = document.createElement("i");
+            star.className = "fi fi-rr-medical-star";
+            starBox.append(star);
+            star.style.animationDuration = `${Math.random()*5 + 4}s`;
+          }
+        })
+      </script>
+    </div>
+    <div class="userData">
+      <img src="assets/images/faces/user0.jfif" class="profilePhoto" alt="">
+      <div class="dataDsp">
+        <div class="data">
+          <h2 style="text-transform: capitalize;">John Doe</h2>
+          <p>@johnathan_ddg <img src="assets/images/badges/blue.png" alt=""></p>
+        </div>
+        <div class="call2action">
+          <i class="fi fi-rr-paper-plane sendChat"></i>
+          <div class="default-btn followUser" onclick="this.classList.toggle('load')">follow</div>
+        </div>
+      </div>
+      <p class="biography">😎orem ipsum dolor sit amet consectetur adipisicing elit. Saepe sunt, praesentium soluta quam nulla iure volupta alias... <b>more</b></p>
+    </div>
+    <div class="bussinessLocation">
+      <div class="location">
+        <!-- <i class="fi fi-sr-shop"></i> -->
+        <div class="data">
+          <h4>Shop Location</h4>
+          <p class="shopAddress">Dodoma, Tanzania</p>
+        </div>
+        <i class="fi fi-rr-track openMaps"></i>
+      </div>
+    </div>
+    <div class="userStats">
+      <p size="120k">followers</p>
+      <p size="1,500">sold products</p>
+      <p size="3.5">rating</p>
+    </div>
+    <div class="sliderSelect" style="margin-bottom: calc(0rem - var(--average-padding));">
+      <div class="slider resultOpt" active="0">
+        <p class="select">Products</p>
+        <p class="select">live auctions</p>
+        <p class="select">feed</p>
+      </div>
+    </div>
+
+    <div class="sltList">
+      <div class="quickList">
+        <div class="miniPost">
+          <p class="price" old="200k" cr="tsh.">149.9k</p>
+          <div class="call2act">
+            <i class="fi fi-sr-heart"></i>
+            <i class="fi fi-rr-share"></i>
+            <i class="fi fi-rr-bookmark"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page chatroom">
+    <div class="header">
+      <div class="call2act">
+        <!-- <i class="fi fi-rr-angle-small-left"></i> -->
+        <div class="user-data">
+          <img class="messageProfilePic" src="assets/images/faces/user1.jfif">
+          <div class="data">
+            <h2 class="messageFullName" style="text-transform: capitalize;">Sokoni</h2>
+            <p>Dodoma, Tanzania</p>
+          </div>
+        </div>
+      </div>
+      <div class="call2act">
+        <!-- <i class="fi fi-rr-video-camera-alt"></i>
+        <i class="fi fi-rr-phone-flip"></i> -->
+        <i class="fi fi-rr-refresh refreshMessages"></i>
+      </div>
+      <!-- <i class="fi fi-rr-menu-dots-vertical"></i> -->
+    </div>
+    <div class="chatsCont">
+      <div class="scrollable">
+        <!-- <p class="rec" time="02:01">mizigo ya jana ilikufikia, naambiwa ilitumwa ontime</p>
+        <p class="rec" time="02:01">pia kama utaweza naomba discount ya hii product kama bado ipo nataka kununua muda huu</p>
+        <p class="rec" time="02:01">mizigo ya jana ilikufikia,.🙂</p>
+        <p class="time">today</p>
+        <p class="rec" time="02:01">atakua kashatuma tayari</p>
+        <h2 class="rec" onclick="copyClip(this.textContent);navigator.vibrate(10)">DSC-78364677 <i class="fi fi-rr-copy"></i></h2>
+        <div class="sent">
+          <p time="02:02">
+            <span>kwanini hujatuma bado</span>
+            <i class="fi fi-rr-check-double"></i>
+          </p>
+        </div>
+        <div class="sent">
+          <p time="02:03">
+            <span sender="Kevin Juma">atakua kashatuma tayari</span>
+            <span>basi fanya kutuma pia Lorem ipsum dolor sit, amet consectetur adipisicing elit. Dolorum libero voluptatibus ad quaerat consequuntur sint nam amet iusto esse quos.</span>
+            <i class="fi fi-rr-check-double"></i>
+          </p>
+        </div> -->
+      </div>
+    </div>
+    <div class="sendInput">
+      <p class="reply" sender=""></p>
+      <div class="flexBox">
+        <div class="inpt">
+          <input type="text" placeholder="Message" enterkeyhint="done">
+          <i class="fi fi-rr-picture"><input type="file" accept=".png, .jpg" multiple></i>
+          <i class="fi fi-rr-percentage" onclick="getPop('.discount')"></i>
+        </div>
+        <i class="fi fi-rr-paper-plane"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileBase profileSettings">
+    <h1>Profile Settings</h1>
+    <h3>Profile Information</h3>
+    <div class="profileSlt">
+      <div class="option">
+        <i class="fi fi-sr-"></i>
+        <div class="data">
+          <h4>option title goes here</h4>
+          <p>user data here</p>
+        </div>
+        <i class="fi fi-rr-edit"></i>
+      </div>
+    </div>
+    <h3>Account & Security</h3>
+    <h3>Address & Preferences</h3>
+    <h3>Danger Zone</h3>
+  </div>
+
+  <div class="page profileBase myShop">
+    <h1>Shop Management</h1>
+
+    <!-- Shop Information -->
+    <!-- <h3>Shop Information</h3> -->
+    <div class="profileSlt">
+      <div class="option" emoji="🏪">
+        <i class="fi fi-sr-shop"></i>
+        <div class="data">
+          <h4>shop name</h4>
+          <p>Mwananyamala Shop</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+      <div class="option" emoji="🏷️">
+        <i class="fi fi-sr-category"></i>
+        <div class="data">
+          <h4>category / industry</h4>
+          <p>Retail / Groceries</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+      <div class="option" emoji="📞">
+        <i class="fi fi-sr-phone-office"></i>
+        <div class="data">
+          <h4>Business phone</h4>
+          <p>+255 764 165 267</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+      <div class="option" emoji="📍">
+        <i class="fi fi-sr-map-marker"></i>
+        <div class="data">
+          <h4>Business address</h4>
+          <p>123, Mwananyamala, Dar es salaam</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+      <div class="option" emoji="⏰">
+        <i class="fi fi-sr-clock"></i>
+        <div class="data">
+          <h4>working hours</h4>
+          <p>Mon - Sat (8:00 AM - 5:00 PM)</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+      <div class="option" emoji="🌐">
+        <i class="fi fi-sr-globe"></i>
+        <div class="data">
+          <h4>shop website</h4>
+          <p>www.sokoni.africa/shop/mwananyamala</p>
+        </div>
+        <i class="fi fi-rr-text-box-edit"></i>
+      </div>
+    </div>
+
+    <!-- Sales & Analytics -->
+    <!-- <h3>Sales & Analytics</h3> -->
+    <div class="profileSlt">
+      <div class="option" emoji="💰">
+        <i class="fi fi-sr-order-history"></i>
+        <div class="data">
+          <h4>All Orders</h4>
+          <p>20 Delivered, 12 Pending</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="📈">
+        <i class="fi fi-sr-chart-pie-alt"></i>
+        <div class="data">
+          <h4>Revenue Charts</h4>
+          <p>View earnings over time</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="📊">
+        <i class="fi fi-sr-analytics"></i>
+        <div class="data">
+          <h4>Shop Analytics</h4>
+          <p>View Shop Performance</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+    </div>
+
+    <!-- Reposts & Engagement -->
+    <!-- <h3>Reposts & Engagement</h3> -->
+    <div class="profileSlt">
+      <div class="option" emoji="🔁">
+        <i class="fi fi-sr-share"></i>
+        <div class="data">
+          <h4>Product Repost Settings</h4>
+          <p>Adjust % commission for resellers</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="💰">
+        <i class="fi fi-sr-gift"></i>
+        <div class="data">
+          <h4>Rewards & Bonuses</h4>
+          <p>Categorize costumer reward per MOQ</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="📣">
+        <i class="fi fi-sr-bullhorn"></i>
+        <div class="data">
+          <h4>Promotions & Discounts</h4>
+          <p>Create coupons, flash sales, bundles</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="⭐">
+        <i class="fi fi-sr-star"></i>
+        <div class="data">
+          <h4>Reviews & Ratings</h4>
+          <p>Manage customer feedback</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+    </div>
+
+    <!-- Settings & KYC -->
+    <!-- <h3>Settings & KYC</h3> -->
+    <div class="profileSlt">
+      <!-- Shop Visibility -->
+      <div class="option" emoji="👁️">
+        <i class="fi fi-sr-eye"></i>
+        <div class="data">
+          <h4>Shop Visibility</h4>
+          <p>Public, Private or Hidden</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- KYC Verification -->
+      <div class="option" emoji="🪪">
+        <i class="fi fi-sr-id-badge"></i>
+        <div class="data">
+          <h4>KYC Verification</h4>
+          <p>Upload ID, Business License, Tax Docs</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- Delivery & Logistics -->
+      <div class="option" emoji="🚚">
+        <i class="fi fi-sr-truck-side"></i>
+        <div class="data">
+          <h4>Delivery Settings</h4>
+          <p>Zones, Fees, Couriers, Pickup Options</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- Orders Management Settings -->
+      <div class="option" emoji="🔔">
+        <i class="fi fi-sr-bell"></i>
+        <div class="data">
+          <h4>Order Notifications</h4>
+          <p>Customize buyer & seller alerts</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- Payments & Payouts -->
+      <div class="option" emoji="💳">
+        <i class="fi fi-sr-credit-card"></i>
+        <div class="data">
+          <h4>Payout Settings</h4>
+          <p>Bank / Mobile Money, Auto or Manual</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="📜">
+        <i class="fi fi-sr-file-invoice-dollar"></i>
+        <div class="data">
+          <h4>Tax & Invoices</h4>
+          <p>VAT setup, invoice templates</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- Shop Preferences -->
+      <div class="option" emoji="⚙️">
+        <i class="fi fi-sr-settings"></i>
+        <div class="data">
+          <h4>Advanced Shop Settings</h4>
+          <p>Inventory rules, bulk uploads, auto-stock updates</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+      <div class="option" emoji="🔒">
+        <i class="fi fi-sr-lock"></i>
+        <div class="data">
+          <h4>Privacy & Security</h4>
+          <p>Limit data sharing, manage authorized staff</p>
+        </div>
+        <i class="fi fi-rr-angle-small-right"></i>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="option" emoji="⛔" style="color: var(--bright-red);">
+        <i class="fi fi-sr-exclamation" style="color: var(--bright-red);"></i>
+        <div class="data">
+          <h4>Shop Suspension</h4>
+          <p style="color: var(--br-shader);">Temporarily disable or close shop</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileBase accountSettings">
+    <h1>Account Settings</h1>
+    <div class="searchInp">
+      <i class="fi fi-rr-search"></i>
+      <input type="text" placeholder="Search Settings....">
+    </div>
+
+    <div class="toggleCont" onclick="getFloater('.updateProfile')">
+      <i class="fi fi-rr-circle-user type"></i>
+      <div class="data">
+        <h4 txt="new">Personal Information</h4>
+        <p><span>Update</span> your personal details like name, username, email, and phone number to keep your account information current.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+
+    <h3>General</h3>
+    <div class="toggleCont">
+      <i class="fi fi-rr-order-history type"></i>
+      <div class="data">
+        <h4 txt="new">My Orders</h4>
+        <p>View and manage your orders, <span>track shipments</span>, and handle returns all in one place. Stay updated with real-time notifications on your order status.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+    <div class="toggleCont">
+      <i class="fi fi-rr-credit-card type"></i>
+      <div class="data">
+        <h4 txt="new">Payment Methods</h4>
+        <p>Manage your saved payment methods, add new <span>credit/debit</span> cards, and set your preferred payment option for a seamless checkout experience.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+    <div class="toggleCont last">
+      <i class="fi fi-rr-map-marker type"></i>
+      <div class="data">
+        <h4 txt="new">My Addresses</h4>
+        <p>View and manage your saved <span>shipping addresses</span>. Add new locations or edit existing ones to ensure your orders are delivered to the right place.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+
+    <h3>Notification</h3>
+    <div class="toggleCont">
+      <i class="fi fi-rr-bell type"></i>
+      <div class="data">
+        <h4 txt="new">Activity Notifications</h4>
+        <p>Enable or disable push notifications for <span>real-time</span> updates about likes, saves and comments on your posts</p>
+      </div>
+      <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+    </div>
+    <div class="toggleCont">
+      <i class="fi fi-rr-party-horn type"></i>
+      <div class="data">
+        <h4 txt="new">Promotions & Offers</h4>
+        <p>Get push notifications whenever there are offers dedicated for your liking.</p>
+      </div>
+      <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+    </div>
+    <div class="toggleCont last">
+      <i class="fi fi-rr-comment-alt type"></i>
+      <div class="data">
+        <h4 txt="new">Direct Email Notification</h4>
+        <p>Get notified via email for <span>important</span> account activities like password changes, login alerts, and security updates.</p>
+      </div>
+      <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+    </div>
+
+    <h3>Appearance & Preferences</h3>
+    <div class="toggleCont">
+      <i class="fi fi-rr-moon-stars type"></i>
+      <div class="data">
+        <h4 txt="new">Dark Mode</h4>
+        <p>Reduce eye strain and improve readability in <span>low-light</span> environments by switching to Dark Mode.</p>
+      </div>
+      <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+    </div>
+    <div class="toggleCont last">
+      <i class="fi fi-rr-globe type"></i>
+      <div class="data">
+        <h4 txt="new">Language & Region</h4>
+        <p>Set your preferred language and region to customize your shopping <span>experience</span> and see relevant content.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+
+    <h3>Account & Support</h3>
+    <div class="toggleCont">
+      <i class="fi fi-rr-parachute-box type"></i>
+      <div class="data">
+        <h4 txt="new">Help Center</h4>
+        <p>Access FAQs, guides, and <span>support</span> resources to help you navigate and troubleshoot common issues.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+    <div class="toggleCont">
+      <i class="fi fi-rr-error-bug type"></i>
+      <div class="data">
+        <h4 txt="new">Report a Problem</h4>
+        <p>Report bugs, glitches, or any issues you encounter while using the app to help us improve your experience.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+    <div class="toggleCont">
+      <i class="fi fi-rr-terms-info type"></i>
+      <div class="data">
+        <h4 txt="new">Terms & Privacy</h4>
+        <p>Review our updated Terms of Service and Privacy Policy to stay informed about your rights and our practices.</p>
+      </div>
+      <i class="fi fi-rr-angle-small-right show"></i>
+    </div>
+    <div class="toggleCont">
+      <i class="fi fi-rr-house-leave type" style="color: var(--bright-red);"></i>
+      <div class="data">
+        <h4 txt="new" style="color: var(--bright-red);">Log Out</h4>
+        <p>Securely log out of your account to protect your personal information and ensure your account's safety.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page profileBase KYCSubmission">
+    <h1>KYC</h1>
+
+    <h3>TIN & NIDA (Respectively)</h3>
+    <div class="inps" style="--tmp: 1fr 1fr;">
+      <div class="input" idTag="TIN">
+        <input type="text" spellcheck="false" placeholder="TIN" enterkeyhint="done" inputmode="numeric">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+      <div class="input" idTag="NIDA">
+        <input type="text" spellcheck="false" placeholder="NIDA" enterkeyhint="done" inputmode="numeric">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+    </div>
+    <div class="inps" style="--tmp: 1fr 1fr;">
+      <div class="input" idTag="TIN_doc">
+        <input type="file" accept=".pdf" placeholder="TIN .pdf or .png">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+      <div class="input" idTag="NIDA_doc">
+        <input type="file" accept=".pdf" placeholder="NIDA .pdf">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+    </div>
+    <h3>Vendor Photo & Shop Photo (Respectively)</h3>
+    <div class="inps" style="--tmp: 1fr 1fr;">
+      <div class="input" idTag="vendor_passport">
+        <input type="file" accept=".png,.jpeg,.jpg,.heic,.pdf" placeholder="TIN .pdf or .png">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+      <div class="input" idTag="vendor_shop">
+        <input type="file" accept=".png,.jpeg,.jpg,.heic" placeholder="NIDA .pdf">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+      </div>
+    </div>
+
+    <div class="default-btn disabled">Submit KYC</div>
+  </div>
+
+
+  <!-- pages for account settings -->
+  <!-- pages for account settings -->
+
+
+  <div class="page profileBase updateProfile">
+    <h1>Acc. Information</h1>
+    <img src="assets/images/badges/null.png" alt="" class="badge">
+
+    <div class="profilePhoto">
+      <img src="assets/images/faces/user1.jfif" class="profilePhotoDisplay" alt="">
+      <i class="fi fi-rr-magic-wand"><input type="file" class="profilePhotoUpdate" accept=".jpg,.png,.heic,.jpeg,.gif"></i>
+    </div>
+
+    <div class="actInputs">
+      <div class="bussinessLocation" style="padding: 0;">
+        <div class="location">
+          <!-- <i class="fi fi-sr-shop"></i> -->
+          <div class="data">
+            <h4>Referal Link</h4>
+            <p class="shopAddress referalLinkDisplay">https://api.sokoni.africa/referee/gsdfsd7-43h-4sdfghe5-5d-s222AasSIAIhhdsjhaaa</p>
+          </div>
+          <i class="fi fi-rr-copy openMaps referalLinkCopy"></i>
+        </div>
+      </div>
+      <h3>Profile Details</h3>
+      <div class="inps" style="--tmp: 1fr 1fr;">
+        <div class="input" idTag="firstName">
+          <input type="text" spellcheck="false" placeholder="First Name" class="commaInput" enterkeyhint="done">
+          <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+        </div>
+        <div class="input" idTag="lastName">
+          <input type="text" spellcheck="false" placeholder="Last Name" class="commaInput" enterkeyhint="done">
+          <p class="status"><i class="fi fi-sr-check-circle"></i> Provide accurate data here.</p>
+        </div>
+      </div>
+      <div class="input" idTag="username">
+        <input type="text" spellcheck="false" placeholder="Username" enterkeyhint="done">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> You can always change it later.</p>
+      </div>
+      <textarea name="" idTag="bio" placeholder="Biography"></textarea>
+
+      <h3>Birthday & Gender</h3>
+      <div class="inps" style="--tmp: 1fr 1fr;">
+        <div class="input" idTag="birthday" style="border: 1px solid var(--bc-shader);">
+          <input type="date" spellcheck="false" placeholder="Birthday" enterkeyhint="done">
+          <p class="status"><i class="fi fi-sr-check-circle"></i> You can always change it later.</p>
+        </div>
+        <select name="" idTag="gender" style="appearance: none;">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+    </div>
+    <div class="call2act">
+      <!-- <i class="fi fi-rr-arrow-left" onclick="history.back()"></i> -->
+      <div class="default-btn disabled" onclick="submitProfileChanges()">Confirm Changes</div>
+    </div>
+  </div>
+
+  <div class="page profileBase paymentMethods">
+    <h1>Payment Methods</h1>
+    <div class="cardsList">
+      <!-- .sokoniCar -->
+    </div>
+  </div>
+
+  <!-- pages for account settings -->
+  <!-- pages for account settings -->
+   
+
+  <div class="page productCreate">
+    <div class="header">
+      <h2>Create Product</h2>
+      <div class="call2act">
+        <!-- <i class="fi fi-rr-refresh"></i> -->
+        <!-- <i class="fi fi-rr-comments"></i> -->
+      </div>
+    </div>
+    <div class="sliderSelect" style="display: none;">
+      <div class="slider resultOpt" active="0">
+        <p class="select">product</p>
+        <p class="select">live auction</p>
+        <p class="select">Undecided</p>
+      </div>
+    </div>
+    <div class="imgCollection">
+      <i class="fi fi-rr-plus add">Add Photo<input type="file" accept=".png,.jpeg,.heic,.jpg,.gif" class="newImgInput" multiple></i>
+      <!-- <div class="image">
+        <i class="fi fi-rr-cross-small"></i>
+        <img src="assets/images/products/iphone2.jfif" alt="">
+      </div> -->
+      <script>
+        function addNewImg(){
+          let newImgInput = get('.floater-pages .productCreate .imgCollection .newImgInput');
+          newImgInput.addEventListener('change', (e)=>{
+            let container = get('.floater-pages .productCreate .imgCollection');
+            for(let img of e.target.files){
+              let reader = new FileReader();
+              reader.onload = function(event){
+                let div = document.createElement('div');
+                div.className = 'image';
+                div.innerHTML = `
+                  <i class="fi fi-rr-cross-small" onclick="delPar(this)"></i>
+                  <img src="${event.target.result}" alt="">
+                `;
+                container.append(div);
+                setTimeout(()=>{div.classList.add('active')},10);
+              }
+              reader.readAsDataURL(img);
+            }
+            newImgInput.value = '';
+          });
+        }
+        addNewImg();
+      </script>
+    </div>
+    <div class="actInputs">
+      <h3>Product Details</h3>
+      <div class="input">
+        <input type="text" spellcheck="false" placeholder="Product Title (100 characters max)" enterkeyhint="done">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> For fast accessibility use a short & easy title.</p>
+      </div>
+      <div class="inps" style="--tmp: 1fr 1fr;margin-bottom: 0;">
+        <div class="input">
+          <select name="" id="category">
+            <option value="" selected disabled>-- Category --</option>
+          </select>
+          <i class="fi fi-rr-angle-small-down"></i>
+        </div>
+        <div class="input">
+          <select name="" id="unit_type">
+            <option value="" selected disabled>-- Unit Type --</option>
+          </select>
+          <i class="fi fi-rr-angle-small-down"></i>
+        </div>
+      </div>
+      <div class="inps" style="--tmp: 1fr 1fr;">
+        <div class="input">
+          <input type="text" spellcheck="false" placeholder="Inventory Size" inputmode="numeric" class="commaInput" enterkeyhint="done">
+          <p class="status"><i class="fi fi-sr-check-circle"></i> Update this frequently.</p>
+        </div>
+        <div class="input">
+          <input type="text" spellcheck="false" placeholder="Base Product Price (BPP)" inputmode="numeric" class="commaInput" enterkeyhint="done">
+          <p class="status"><i class="fi fi-sr-check-circle"></i> Update this frequently.</p>
+        </div>
+      </div>
+      <!-- <i class="fi fi-rr-"></i> -->
+      <textarea name="" id="" placeholder="Product Description"></textarea>
+
+      <!-- <h3 class="addit">Tags & Additional Settings</h3>
+      <div class="tagList empty">
+      </div> -->
+      
+      <h3>Settings & Features</h3>
+      <div class="toggleCont" value="winga">
+        <i class="fi fi-rr-store-buyer type"></i>
+        <div class="data">
+          <h4 txt="new">Winga Mode</h4>
+          <p>By enabling this, 3rd party clients can post your products on their story & earn <span>5%</span> of your product as other clients buy from them.</p>
+        </div>
+        <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+      </div>
+      <div class="toggleCont" value="waranty">
+        <i class="fi fi-rr-shield-check type"></i>
+        <div class="data">
+          <h4 txt="new">Waranty</h4>
+          <p>Enable product <span>Annual</span> waranty to gain more trust from buyers. You can set the waranty period in the product details after creating the product.</p>
+        </div>
+        <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+      </div>
+      <div class="toggleCont" value="private">
+        <i class="fi fi-rr-eye-crossed type"></i>
+        <div class="data">
+          <h4 txt="new">Private Product</h4>
+          <p>By enabling this, only your <span>Followers</span> can see this product on your profile. Useful for products that are not for sale yet or out of stock.</p>
+        </div>
+        <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+      </div>
+      <div class="toggleCont" value="adults">
+        <i class="fi fi-rr-age-restriction-eighteen type"></i>
+        <div class="data">
+          <h4 txt="new">Adult Content</h4>
+          <p>By enabling this, only users above <span>18+</span> can see this product on your profile. Useful for products that are not for sale yet or out of stock.</p>
+        </div>
+        <div class="toggle-btn"><i class="fi fi-sr-moon switch"></i></div>
+      </div>
+    </div>
+    <div class="attributes">
+      <h3>Product Attributes</h3>
+      <i class="fi fi-rr-plus-small addAttr" onclick="newAttr()"></i>
+      <div class="attrList">
+        <div class="attr active">
+          <input class="attrVal" type="text" spellcheck="false" placeholder="ACN" enterkeyhint="done">
+          <textarea class="attrVal" spellcheck="false" placeholder="Values (Enter for Next)" enterkeyhint="done"></textarea>
+          <i class="fi fi-rr-trash delAttr" onclick="delPar(this)"></i>
+        </div>
+      </div>
+      <script>
+        function newAttr(){
+          let container = get('.floater-pages .productCreate .attributes .attrList');
+          let div = document.createElement('div');
+          div.className = 'attr';
+          div.innerHTML = `
+            <input class="attrVal" type="text" spellcheck="false" placeholder="ACN" enterkeyhint="done">
+            <textarea class="attrVal" spellcheck="false" placeholder="Values (Enter for Next)" enterkeyhint="done"></textarea>
+            <i class="fi fi-rr-trash delAttr" onclick="delPar(this)"></i>
+          `;
+          container.append(div);
+          setTimeout(()=>{div.classList.add('active')},10);
+        }
+        function delPar(ele){
+          let par = ele.parentElement;
+          par.classList.remove('active');
+          setTimeout(()=>{par.remove()},500);
+        }
+      </script>
+    </div>
+    <div class="call2action">
+      <div class="slider-btn" fn="createData">Continue</div>
+    </div>
+  </div>
+
+  <div class="page comingSoon empty">
+    <img src="assets/images/empty.png" alt="">
+    <h3 style="margin-bottom: 0.5rem;">Coming Soon</h3>
+    <p>Sorry!! this page is still under development, please come back another time🥹</p>
+  </div>
+</div>
+
+<div class="all-popups">
+  <div class="content-popup contact-verification">
+    <i class="fi fi-sr-wallet-money imagery" after="😎"></i>
+    <h2 class="popHead">We Flex Security</h2>
+    <div class="popDescr">
+      <p>Please provide the OTP that was sent to your number, didn't recieve code? </p><span>Change Phone Number</span><p>or</p><span>Resend OTP</span>
+    </div>
+    <div class="inputOTP onboardOTP" otpValue="112266">
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <input type="number" maxlength="6" enterkeyhint="done">
+    </div>
+    <div class="default-btn otpCallBtn disabled"><p sw="Thibitisha Namba" en="Verify Phone">Verify Phone</p></div>
+  </div>
+  <div class="content-popup signIn" id="userSignIn">
+    <i class="fi fi-sr-wallet-money imagery" after="🔐"></i>
+    <h2 class="popHead">Welcome Aboard</h2>
+    <div class="popDescrCont">
+      <div class="popDescr active">
+        <p>Please Select how you'd like to continue, We assume you have read and understood our <span>Terms & Conditions</span> & <span>Privacy Pollicy</span></span>
+        <div class="choices">
+          <div class="default-btn googleLogin"><img src="assets/images/Companies/google.png"> Google</div>
+          <div class="default-btn" onclick="getDscr(1, 'userSignIn')"><img src="assets/images/Companies/call.png"> Mobile</div>
+          <div class="default-btn guestCont">Continue as Guest</div>
+        </div>
+      </div>
+      <div class="popDescr">
+        <p>Please enter a valid Phone number in the input below, We'll alert you if the number is used by someone else.</p>
+        <div class="mobile" id="onboardingInput">
+          <div class="userSelect" values="opt one|opt two|opt three">
+              <p class="value">🇹🇿+255</p>
+              <div class="options">
+                  <span>🇲🇦+212</span>
+              </div>
+          </div>
+          <div class="input">
+              <input id="numberLogin" space="3" maxlength="11" inputmode="numeric" enterkeyhint="done" vtype="int" type="text" spellcheck="false" placeholder="Phone Number">
+              <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+          </div>
+        </div>
+        <div class="default-btn" id="getOTPbtn" onclick="verifyPhone(this)">Continue</div>
+      </div>
+      <div class="popDescr">
+        <p>Please provide the OTP that was sent to your number, didn't recieve code? </p><span onclick="getDscr(1, 'userSignIn')">Change Phone Number</span><p>or</p><span>Resend OTP</span>
+        <div class="inputOTP loginOTP" otpValue="112266" style="margin-block: var(--minimal-padding);">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <input type="text" inputmode="numeric" maxlength="6" enterkeyhint="done">
+        </div>
+        <div class="default-btn loginBtn disabled" onmouseout="this.classList.add('load')">Continue</div>
+      </div>
+    </div>
+  </div>
+  <div class="content-popup addPayment" id="paymentMethod">
+    <div class="hangerCloser" ontouchend="shutPop('.addPayment');getDscr(0, 'paymentMethod')"></div>
+    <i class="fi fi-sr-wallet-money imagery" after="💰"></i>
+    <h2 class="popHead">Payment Method</h2>
+    <div class="popDescrCont">
+      <div class="popDescr active">
+        <p>Please Select how you'd like to continue, We assume you have read and understood our <span>Terms & Conditions</span> & <span>Privacy Pollicy</span></span>
+        <div class="choices">
+          <div class="default-btn googleLogin" onclick="getDscr(2, 'paymentMethod')"><i class="fi fi-sr-credit-card"></i> Bank Card</div>
+          <div class="default-btn" onclick="getDscr(1, 'paymentMethod')" style="background-color: var(--charcoal-black);color: var(--bone-white) !important;"><i class="fi fi-sr-mobile-notch"></i> Mobile Money</div>
+        </div>
+      </div>
+      <div class="popDescr">
+        <p>Please enter a valid Phone number in the input below, We'll alert you if the number is used by someone else.</p>
+        <div class="mobile" id="onboardingInput">
+          <div class="userSelect" values="opt one|opt two|opt three">
+            <p class="value">🇹🇿+255</p>
+            <div class="options">
+                <span>🇲🇦+212</span>
+            </div>
+          </div>
+          <div class="input">
+            <input id="numberPayment" space="3" maxlength="11" inputmode="numeric" enterkeyhint="done" vtype="int" type="text" spellcheck="false" placeholder="Phone Number">
+            <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+          </div>
+        </div>
+        <div class="default-btn" id="getOTPbtn" onclick="addMobilePay();getDscr(0, 'paymentMethod')">Continue</div>
+      </div>
+      <div class="popDescr">
+        <p>Fill in all your card details, please double check before confirming your data</p>
+        <div class="input">
+          <input id="numberPayment" space="4" spaceType="  " maxlength="22" inputmode="numeric" enterkeyhint="done" vtype="int" type="text" spellcheck="false" placeholder="Visa / MasterCard Number">
+          <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content-popup createNewAddress">
+    <div class="hangerCloser" ontouchend="shutPop('.createNewAddress')"></div>
+    <i class="fi fi-sr-map-marker imagery" after="😁"></i>
+    <h2 class="popHead">Add Address</h2>
+    <div class="popDescr">
+      <p>Please provide the name for this specific location, Make sure it's something you can remember next time!!</p>
+      <br>
+      <div class="input">
+        <input placeholder="Location Title, eg. Home Location" type="text" spellcheck="false" enterkeyhint="done" id="locationTitle">
+        <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+      </div>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.createNewAddress')"></i>
+      <div class="default-btn" onclick="addNewLocation(this)">Confirm Address</div>
+    </div>
+  </div>
+  <div class="content-popup filterSort">
+    <div class="hangerCloser" ontouchend="shutPop('.filterSort')"></div>
+    <i class="fi fi-sr-filter-list imagery" after="🧐"></i>
+    <h2 class="popHead">Products Filter</h2>
+    <div class="popDescr">
+      <p>Help the system categorize what you'd like to see from the products result tab.</p>
+    </div>
+    <h3 class="popTitle">product category</h3>
+    <div class="selection" id="categories">
+    </div>
+    <h3 class="popTitle">price range</h3>
+    <div class="priceDrag" max="2000000">
+      <div class="dragSect" style="--start: 3%;--length: 10%;">
+        <div class="draggable">
+          <p><span>Drag</span></p>
+        </div>
+        <div class="draggable">
+          <p><span>Drag</span></p>
+        </div>
+      </div>
+      <!-- <div class="inputs">
+        <input class="commaInput" type="text" inputmode="numeric" enterkeyhint="done" placeholder="min. Price">
+        <span>→</span>
+        <input class="commaInput" type="text" inputmode="numeric" enterkeyhint="done" placeholder="max. Price">
+      </div> -->
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.filterSort')"></i>
+      <div class="default-btn disabled">Apply Filters</div>
+    </div>
+  </div>
+  <div class="content-popup welcome">
+    <div class="hangerCloser" ontouchend="shutPop('.welcome')"></div>
+    <i class="fi fi-sr-gift imagery" after="🎊"></i>
+    <h2 class="popHead">You Made It!!</h2>
+    <div class="popDescr">
+      <p>We're thrilled to have you here! Explore, shop, and connect with a world of amazing products and people. Let's make your experience unforgettable! <br><br>But first we need you to voluntarily finish setting up your profile. Remember! you don't have to do it now.</p>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.welcome')"></i>
+      <div class="default-btn" onclick="shutPop('.welcome')">Finish Setup</div>
+    </div>
+  </div>
+  <div class="content-popup logOutConfirm">
+    <div class="hangerCloser" ontouchend="shutPop('.logOutConfirm')"></div>
+    <i class="fi fi-sr-leave imagery" after="🥲"></i>
+    <h2 class="popHead">You're about to Leave!</h2>
+    <div class="popDescr">
+      <p>Please confirm if you want to leave this account. <br><br> Remember! you can always switch back to this account by logging in again.</p>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.logOutConfirm')"></i>
+      <div class="default-btn" onclick="logOut();this.classList.add('load')">Leave Account</div>
+    </div>
+  </div>
+  <div class="content-popup paymentSuccess">
+    <div class="hangerCloser" ontouchend="shutPop('.paymentSuccess')"></div>
+    <i class="fi fi-sr-wallet imagery" after="🎊"></i>
+    <h2 class="popHead">Payment Successfull!!!</h2>
+    <div class="popDescr">
+      <p>Thank you for your payment! Your transaction has been successfully processed. You will receive a confirmation email shortly with the details of your purchase. We appreciate your business and look forward to serving you again!</p>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.paymentSuccess')"></i>
+      <div class="default-btn" onclick="loadMyOrders();getFloater('.myOrders')">Preview Orders</div>
+    </div>
+  </div>
+  <div class="content-popup createPostPending">
+    <!-- <div class="hangerCloser" ontouchend="shutPop('.createPostPending')"></div> -->
+    <i class="fi fi-sr-hourglass imagery" after="⏳"></i>
+    <h2 class="popHead">Almost There!</h2>
+    <div class="popDescr">
+      <p>Your post is being reviewed by our team to ensure it meets our community guidelines. This process usually takes a few minutes. You'll be notified once it's live!</p>
+    </div>
+    <p class="el-status" style="width: 100%;padding-block: 0.5rem;margin-bottom: -0.5rem; display: none;"><i class="fi fi-sr-check-circle"></i> Your Product was added successfully!!</p>
+    <div class="call2action">
+      <div class="default-btn load">Continue</div>
+    </div>
+  </div>
+  <div class="content-popup pendingPayment">
+    <!-- <div class="hangerCloser" ontouchend="shutPop('.pendingPayment')"></div> -->
+    <i class="fi fi-sr-wallet-money imagery" after="💸"></i>
+    <h2 class="popHead">Complete Your Payment</h2>
+    <div class="popDescr">
+      <p>Your order is almost complete! Please proceed to pay <b style="font-family: var(--primary-font);">Tzs.15,000/-</b> to finalize your purchase and enjoy your new items.</p>
+    </div>
+    <div class="input">
+      <input type="text" spellcheck="false" placeholder="Enter Phone, eg. 255 7xxxxxxxx" inputmode="numeric" enterkeyhint="done">
+      <p class="status"><i class="fi fi-sr-check-circle"></i> Ensure the amount matches your cart total.</p>
+    </div>
+    <div class="call2action">
+      <div class="default-btn" onclick="shutPop('.pendingPayment')" onclock="testPayment();this.classList.toggle('load')">Proceed to Pay</div>
+    </div>
+  </div>
+  <div class="content-popup comments">
+    <div class="hangerCloser" ontouchend="shutPop('.comments')"></div>
+    <h2 class="popHead">Comments (28k)</h2>
+    <div class="allComments">
+      <div class="comment">
+        <img src="assets/images/faces/user2.jfif">
+        <div class="data">
+          <h4>juma_johnson <img src="assets/images/badges/blue.png"></h4>
+          <p>Nilinunua jumatatu nikapata jumatatu hiohio, hawa watu wako vizuri sana. 10/10 Recomended😎😎</p>
+          <i class="fi fi-sr-star pr">5</i>
+        </div>
+      </div>
+      <div class="comment">
+        <img src="assets/images/faces/user6.jfif">
+        <div class="data">
+          <h4>mwanaidi_shaaban <img src="assets/images/badges/gold.png"></h4>
+          <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Neque laudantium ad doloremque nesciunt commodi iusto. hello,.</p>
+          <!-- <i class="fi fi-sr-star pr">5</i> -->
+        </div>
+      </div>
+    </div>
+    <div class="commentInput">
+      <input type="text" placeholder="Comment" enterkeyhint="done">
+      <i class="fi fi-sr-star rating">
+        <div class="rateSlt">
+          <i class="fi fi-rr-star"></i>
+          <i class="fi fi-rr-star"></i>
+          <i class="fi fi-rr-star"></i>
+          <i class="fi fi-rr-star"></i>
+          <i class="fi fi-rr-star"></i>
+        </div>
+      </i>
+      <i class="fi fi-rr-paper-plane default-btn"></i>
+    </div>
+  </div>
+  <div class="content-popup description">
+    <div class="hangerCloser" ontouchend="shutPop('.description')"></div>
+    <i class="fi fi-sr-description-alt imagery" after="🧐"></i>
+    <h2 class="popHead">Description</h2>
+    <p class="descrParagraph"><b>@fanevesal</b> straight from dubai the phone comes with zero damages Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolor porro ipsam placeat delectus asperiores consectetur atque harum aliquid expedita accusantium quidem accusamus odio hic, eos qui ratione sequi ad. Incidunt placeat, ipsam praesentium consequatur amet error. Maiores perspiciatis, voluptate, earum nam nesciunt ducimus eaque, facilis soluta nisi fugit omnis itaque? <br><br>- order multiple Lorem ipsum dolor sit amet. <br>- Lorem ipsum dolor sit amet consectetur adipisicing elit. Earum necessitatibus nisi molestias est quod. Ut enim placeat consectetur aut facilis? <br>- ipsum dolor sit amet, consectetur adipisicing elit. Id rem praesentium modi.</p>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back" ontouchend="shutPop('.description')"></i>
+      <div class="default-btn">preview product</div>
+    </div>
+  </div>
+  <div class="content-popup fullBio">
+    <div class="hangerCloser" ontouchend="shutPop('.fullBio')"></div>
+    <i class="fi fi-sr-description-alt imagery" after="🧐"></i>
+    <h2 class="popHead">Biography</h2>
+    <p class="descrParagraph bioContent"></p>
+  </div>
+  <div class="content-popup optionsReport">
+    <div class="hangerCloser" ontouchend="shutPop('.optionsReport');rmActive('.optionsReport .reportInput')"></div>
+    <div class="reportInput">
+      <textarea placeholder="Please provide a description for your Report."></textarea>
+      <div class="default-btn">Report</div>
+    </div>
+    <div class="actions">
+      <i class="fi fi-rr-share" onclick="sharePost(`barefawl.com`)">share</i>
+      <i class="fi fi-rr-copy" onclick="copyClip()">copy link</i>
+      <i class="fi fi-rr-refer-arrow">winga</i>
+      <i class="fi fi-rr-lightbulb-cfl-on">interested</i>
+      <i class="fi fi-rr-lightbulb-exclamation" onclick="addActive('.optionsReport .reportInput')">report</i>
+    </div>
+  </div>
+  <div class="content-popup caption">
+    <div class="hangerCloser" ontouchend="shutPop('.caption');"></div>
+    <i class="fi fi-sr-pen-field imagery" after="📝"></i>
+    <h2 class="popHead">Add Caption</h2>
+    <div class="popDescr">
+      <p>Add a catchy caption to your story to attract more viewers and engagement. Make it fun, informative, or intriguing!</p>
+    </div>
+    <div class="reportInput active">
+      <textarea class="captionInput" placeholder="What's your Caption...." maxlength="200"></textarea>
+      <!-- <div class="default-btn">Report</div> -->
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back" ontouchend="shutPop('.caption')"></i>
+      <div class="default-btn captionBtn">post story</div>
+    </div>
+  </div>
+  <div class="content-popup checkout">
+    <div class="hangerCloser" ontouchend="shutPop('.checkout');quickBuyItem = undefined;"></div>
+    <i class="fi fi-sr-credit-card-check imagery" after="💸"></i>
+    <h2 class="popHead">Checkout & Order</h2>
+    <div class="popDescr">
+      <p>Review your order, enter your details, and complete your purchase safely. All transactions are encrypted and protected.</p>
+      <div class="mobile" id="walletInput" style="display: flex;width: 100%;margin-block: var(--minimal-padding) -0.5rem;gap: var(--average-padding);">
+        <div class="userSelect" values="opt one|opt two|opt three">
+            <p class="value">🇹🇿+255</p>
+            <div class="options">
+                <span>🇲🇦+212</span>
+            </div>
+        </div>
+        <div class="input">
+            <input id="numberLogin" space="3" maxlength="11" inputmode="numeric" enterkeyhint="done" vtype="int" type="text" spellcheck="false" placeholder="Phone Number">
+            <p class="status" style="font-size: var(--font-xxs);"><i class="fi fi-sr-triangle-warning"></i> <span en="Please provide VALID Information to Continue" sw="Tafadhali ingiza taarifa za UHAKIKA kuendelea">Please provide VALID Information to Continue</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="categories">
+      <div class="uSelect location" id="locations">
+        <i class="fi fi-rr-angle-small-right getOpts"></i>
+        <div class="optSlt active">
+          <i class="fi fi-sr-home-location"></i>
+          <div class="data">
+            <h4>Home Location</h4>
+            <p>Iyumbu, Dodoma, Tanzania</p>
+          </div>
+          <i class="fi fi-rr-check"></i>
+        </div>
+        <div class="optSlt">
+          <i class="fi fi-sr-marker"></i>
+          <div class="data">
+            <h4>Additional Location</h4>
+            <p>Mwatulole, Geita, Tanzania</p>
+          </div>
+          <i class="fi fi-rr-check"></i>
+        </div>
+      </div>
+      <div class="uSelect logistic">
+        <div class="optSlt active visible">
+          <img src="assets/favicon/android-chrome-512x512.png" alt="">
+          <div class="data">
+            <h4>Sokoni Africa Logistics</h4>
+            <p>Direct & Warehouse Delivery</p>
+          </div>
+          <i class="fi fi-rr-check"></i>
+        </div>
+      </div>
+    </div>
+    <div class="accounting">
+      <!-- <div class="dscInput">
+        <input type="text" placeholder="discount coupon">
+        <div class="default-btn">apply</div>
+      </div> -->
+      <p tag="discounts">Tzs. -20,000/-</p>
+      <p tag="logistics">Tzs. 10,000/-</p>
+      <p tag="subtotal">Tzs. 220,000/-</p>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"></i>
+      <div class="default-btn" onclick="placeOrder(this, quickBuyItem)">place order</div>
+    </div>
+  </div>
+  <div class="content-popup discount">
+    <div class="hangerCloser" ontouchend="shutPop('.discount')"></div>
+    <i class="fi fi-sr-credit-card-check imagery" after="🫴"></i>
+    <h2 class="popHead">Create Discount</h2>
+    <div class="popDescr">
+      <p>The discount coupon will be sent directly to the user you are conversating with, and can only be used by this specific user.</p>
+    </div>
+    <div class="allInputs">
+      <div class="input">
+        <input type="text" spellcheck="false" placeholder="Product Link / URL">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Please provide the link of the product requested.</p>
+      </div>
+      <div class="input">
+        <input type="text" spellcheck="false" placeholder="MOQ">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Minimum Order Quantity</p>
+      </div>
+      <div class="input">
+        <input type="text" spellcheck="false" placeholder="Discount">
+        <p class="status"><i class="fi fi-sr-check-circle"></i> Discount per MOQ.</p>
+      </div>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back" onclick="shutPop('.discount')"></i>
+      <div class="default-btn disabled">create coupon</div>
+    </div>
+  </div>
+  <div class="content-popup profileChanges">
+    <div class="hangerCloser" ontouchend="shutPop('.profileChanges')"></div>
+    <i class="fi fi-sr-user imagery" after="🙂"></i>
+    <h2 class="popHead">Update Profile</h2>
+    <div class="popDescr">
+      <p>You're almost done! To enhance your experience, please take a moment to update your profile with accurate information. This helps us tailor our services to better suit your needs and ensures you get the most out of our platform.</p>
+    </div>
+    <div class="call2action">
+      <i class="fi fi-rr-angle-small-left back"  ontouchend="shutPop('.profileChanges')"></i>
+      <div class="default-btn">Update Profile</div>
+    </div>
+  </div>
+
+  <div class="content-popup createNew">
+    <div class="hangerCloser" ontouchend="shutPop('.createNew')"></div>
+    <i class="fi fi-sr-boxes imagery" after="📦"></i>
+    <h2 class="popHead">Create Product</h2>
+    <div class="popDescrCont">
+      <div class="popDescr active">
+        <p>Choose the type of product you wish to Create, Common means it can be Accessed in our Pre-pared Database</p>
+        <div class="choices">
+          <div class="default-btn">Common Product</div>
+          <div class="default-btn" onclick="shutPop('.createNew');getFloater('.productCreate')" style="background-color: var(--charcoal-black);color: var(--bone-white);">Unique Product</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="statusMessage"><i class="fi fi-rr-exclamation"></i><span>Product was added to cart successfully🎉</span></p>
+</body>
+<!-- <script src="https://cdn.jsdelivr.net/npm/@capacitor/core/dist/capacitor.js"></script> -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.6.0/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js"></script>
+<script src="assets/js/confetti.js"></script>
+<script src="assets/js/confetti_test.js"></script>
+<script src="assets/js/mapbox.js"></script>
+<script src="assets/js/pbkdf2.encrypt.min.js"></script>
+<script src="assets/js/mockData.js"></script>
+<script src="assets/js/index.js"></script>
+<script src="assets/js/push_handler.js"></script>
+<script src="assets/js/navigation.js"></script>
+<script src="assets/js/languages.js"></script>
+<script src="assets/js/api_handler.js"></script>
+<script src="assets/js/components.js"></script>
+<!-- <script src="assets/js/nativeHandler.js"></script> -->
+</html>

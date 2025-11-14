@@ -1,0 +1,93 @@
+/* Individual profileBase */
+.profileBase {
+  display: none; /* only active profileBase shows */
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.profileBase.active {
+  display: flex;
+}
+
+/* Headers */
+.profileBase h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+  color: #111;
+}
+
+.profileBase h3 {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0.8rem 0 0.4rem;
+  color: #555;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.2rem;
+}
+
+/* Section container */
+.profileBase > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Option cards */
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.option:hover {
+  background: #f5f5f5;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+}
+
+/* Left icon */
+.option i:first-child {
+  font-size: 1.4rem;
+  color: #666;
+  margin-right: 0.8rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Data block */
+.option .data {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.option .data h4 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #222;
+}
+
+.option .data p {
+  font-size: 0.8rem;
+  color: #777;
+  margin-top: 2px;
+}
+
+/* Right icon */
+.option i:last-child {
+  font-size: 1.1rem;
+  color: #bbb;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(6px);}
+  to {opacity: 1; transform: translateY(0);}
+}

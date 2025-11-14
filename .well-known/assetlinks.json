@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.onrender.africasoko.twa",
+        "sha256_cert_fingerprints": ["C8:79:7B:7C:E5:01:E4:44:8D:09:99:F1:2E:44:60:31:79:11:E0:DB:DC:93:55:03:5F:98:C3:CC:09:C9:F8:69"]
+      }
+    }]

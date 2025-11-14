@@ -1,0 +1,85 @@
+{
+  "id":"skn-uuid-efkgghag-i7783hhs",
+  "description":"This is a mobile Application created to raise the market for all African suppliers",
+  "name": "Sokoni Africa",
+  "short_name": "Sokoni",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "fullscreen": true,
+  "background_color": "#faf8f5",
+  "theme_color": "#faf8f5",
+  "icons": [
+    {
+      "src": "assets/favicon/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots":[
+    {
+      "src":"assets/screenshots/screen1.jpg",
+      "sizes":"498x1080",
+      "type":"image/jpg"
+    },
+    {
+      "src":"assets/screenshots/screen2.jpg",
+      "sizes":"498x1080",
+      "type":"image/jpg"
+    },
+    {
+      "src":"assets/screenshots/screen3.jpg",
+      "sizes":"498x1080",
+      "type":"image/jpg"
+    },
+    {
+      "src":"assets/screenshots/screen4.jpg",
+      "sizes":"498x1080",
+      "type":"image/jpg"
+    }
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "categories": [
+    "books",
+    "business",
+    "education",
+    "entertainment",
+    "finance",
+    "fitness",
+    "food",
+    "health",
+    "kids",
+    "lifestyle",
+    "magazines",
+    "medical",
+    "productivity",
+    "sports",
+    "travel",
+    "utilities",
+    "weather"
+  ],
+  "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en",
+  "launch_handler": {
+    "client_mode": "auto" 
+  },
+  "prefer_related_applications": false,
+  "related_applications":[],
+  "scope_extensions":[],
+  "enableNotifications": true,
+  "isChromeOSOnly": true
+}

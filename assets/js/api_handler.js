@@ -205,7 +205,7 @@ async function loadPosts() {
           <h2 class="postPrice" old="Tsh. ${formatShort(data.price * 1.2)}">Tsh. ${formatMoney(data.price)}/-</h2>
           <div class="postActions">
             <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
-            <i class="fi fi-rr-comment-alt-middle" onclick="getPop('.comments')"></i>
+            <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(${post.id})"></i>
             <i class="fi fi-rr-bookmark"></i>
             <i class="fi fi-sr-star rating">0.0</i>
           </div>
@@ -1179,7 +1179,7 @@ function renderPost(post, grid) {
     </div>
     <div class="postActions">
       <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
-      <i class="fi fi-rr-comment-alt-middle" onclick="getPop('.comments')"></i>
+      <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(${post.id})"></i>
       <i class="fi fi-rr-bookmark"></i>
       <i class="fi fi-sr-star rating">0.0</i>
     </div>
@@ -1947,6 +1947,7 @@ function initAllEndpoints(){
     applyRole();
     displayConversations();
     handleOnlineStatus();
+    initCommentsPopup();
   });
 };
 

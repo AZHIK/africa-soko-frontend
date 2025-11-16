@@ -1,9 +1,16 @@
-
 let selectedRating = 5;
 let currentProductId = null;
 let skipCount = 0;
 const PAGE_LIMIT = 20;
 let loadingReviews = false;
+
+// Helper to get Authorization headers
+function getAuthHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${localStorage.getItem("sokoni_identity")}`
+  };
+}
 
 export function renderComment(review, container, currentUserId = null) {
   const commentDiv = document.createElement('div');
@@ -23,7 +30,6 @@ export function renderComment(review, container, currentUserId = null) {
     </div>
   `;
 
-  // If current user can edit/delete show icons (assume currentUserId available globally as CURRENT_USER_ID)
   if (typeof CURRENT_USER_ID !== 'undefined') {
     const isOwner = review.user_id === CURRENT_USER_ID;
     if (isOwner) {
@@ -35,17 +41,15 @@ export function renderComment(review, container, currentUserId = null) {
       `;
       commentDiv.querySelector('.data').appendChild(actionWrap);
 
-      // Edit handler (open in the input for edit)
+      // Edit handler
       actionWrap.querySelector('.edit-review').addEventListener('click', () => {
         const input = document.querySelector('.commentInput input');
         input.value = review.comment || '';
         selectedRating = review.rating || 5;
         lockStars(selectedRating - 1);
-        // store review id to update instead of create
         commentDraft.reviewId = review.id;
         commentDraft.isEditing = true;
         updateSendButtonForEdit();
-        // focus
         input.focus();
       });
 
@@ -53,7 +57,10 @@ export function renderComment(review, container, currentUserId = null) {
       actionWrap.querySelector('.delete-review').addEventListener('click', async () => {
         if (!confirm('Delete this review?')) return;
         try {
-          const res = await fetch(`${MAIN_SERVER}/reviews/${review.id}`, { method: 'DELETE' });
+          const res = await fetch(`${MAIN_SERVER}/reviews/${review.id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+          });
           if (res.status === 204 || res.ok) {
             commentDiv.remove();
             decrementCommentCount();
@@ -74,7 +81,7 @@ export function renderComment(review, container, currentUserId = null) {
   container.appendChild(commentDiv);
 }
 
-// --- star helper functions (internal) ---
+// --- star helper functions ---
 function highlightStars(index) {
   const stars = document.querySelectorAll('.commentInput .rateSlt i');
   stars.forEach((s, i) => s.classList.toggle('active', i <= index));
@@ -89,7 +96,6 @@ function lockStars(index) {
 
 // used by edit flow
 const commentDraft = { reviewId: null, isEditing: false };
-
 function updateSendButtonForEdit() {
   const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
   if (!sendBtn) return;
@@ -117,18 +123,18 @@ export async function loadProductReviews(productId, reset = true) {
     commentDraft.reviewId = null;
     commentDraft.isEditing = false;
     updateSendButtonForEdit();
-    // reset UI selectedRating
     selectedRating = 5;
     lockStars(selectedRating - 1);
   }
 
   try {
-    const res = await fetch(`${MAIN_SERVER}/products/${productId}/reviews?skip=${skipCount}&limit=${PAGE_LIMIT}`);
+    const res = await fetch(`${MAIN_SERVER}/products/${productId}/reviews?skip=${skipCount}&limit=${PAGE_LIMIT}`, {
+      headers: getAuthHeaders()
+    });
     if (!res.ok) throw new Error('Failed to fetch reviews');
     const reviews = await res.json();
 
-    // Render newest first (server may return newest-first or not)
-    reviews.reverse(); // if your server returns newest->oldest, remove this line
+    reviews.reverse(); // newest first
     reviews.forEach(r => renderComment(r, container));
     skipCount += reviews.length;
     updateCommentCountDisplay(skipCount);
@@ -140,11 +146,74 @@ export async function loadProductReviews(productId, reset = true) {
   }
 }
 
-// update .popHead count (increment/decrement helpers)
+// --- post review ---
+export async function postReview() {
+  if (!currentProductId) return;
+
+  const input = document.querySelector('.commentInput input');
+  const commentText = input ? input.value.trim() : '';
+  const payload = {
+    rating: selectedRating || 5,
+    comment: commentText,
+    product_id: currentProductId
+  };
+
+  try {
+    const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
+    sendBtn.classList.add('load');
+
+    if (commentDraft.isEditing && commentDraft.reviewId) {
+      const res = await fetch(`${MAIN_SERVER}/reviews/${commentDraft.reviewId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ rating: payload.rating, comment: payload.comment })
+      });
+      if (!res.ok) throw new Error('Failed to update review');
+      await loadProductReviews(currentProductId, true);
+      initStatusMessage && initStatusMessage('Review updated');
+      commentDraft.reviewId = null;
+      commentDraft.isEditing = false;
+      updateSendButtonForEdit();
+    } else {
+      const res = await fetch(`${MAIN_SERVER}/products/${currentProductId}/reviews`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>null);
+        console.error('Create review failed', err);
+        const msg = (err && err.detail) ? err.detail : 'Failed to post review';
+        initStatusMessage && initStatusMessage(msg);
+        return;
+      }
+      const created = await res.json();
+      const container = document.querySelector('.allComments');
+      const firstChild = container.firstChild;
+      const tmp = document.createElement('div');
+      renderComment(created, tmp);
+      if (firstChild) container.insertBefore(tmp.firstChild, firstChild);
+      else container.appendChild(tmp.firstChild);
+
+      input.value = '';
+      selectedRating = 5;
+      lockStars(selectedRating - 1);
+      incrementCommentCount();
+      initStatusMessage && initStatusMessage('Review added');
+    }
+  } catch (err) {
+    console.error('Error posting review', err);
+    initStatusMessage && initStatusMessage('Failed to post review');
+  } finally {
+    const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
+    sendBtn && sendBtn.classList.remove('load');
+  }
+}
+
+// --- helpers ---
 function updateCommentCountDisplay(total) {
   const head = document.querySelector('.content-popup.comments .popHead');
   if (!head) return;
-  // try to extract number in parentheses, else set to total
   head.textContent = head.textContent.replace(/\(.+\)/, `(${total})`);
 }
 function decrementCommentCount() {
@@ -168,87 +237,12 @@ function incrementCommentCount() {
   }
 }
 
-// --- post review (create or update depending on draft) ---
-export async function postReview() {
-  if (!currentProductId) {
-    console.warn('No product selected for review');
-    return;
-  }
-  const input = document.querySelector('.commentInput input');
-  const commentText = input ? input.value.trim() : '';
-  const payload = {
-    rating: selectedRating || 5,
-    comment: commentText,
-    product_id: currentProductId
-  };
-
-  try {
-    const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
-    sendBtn.classList.add('load');
-
-    if (commentDraft.isEditing && commentDraft.reviewId) {
-      // update
-      const res = await fetch(`${MAIN_SERVER}/reviews/${commentDraft.reviewId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating: payload.rating, comment: payload.comment })
-      });
-      if (!res.ok) throw new Error('Failed to update review');
-      const updated = await res.json();
-      // replace the existing rendered review: simple strategy = reload first page
-      await loadProductReviews(currentProductId, true);
-      initStatusMessage && initStatusMessage('Review updated');
-      commentDraft.reviewId = null;
-      commentDraft.isEditing = false;
-      updateSendButtonForEdit();
-    } else {
-      // create
-      const res = await fetch(`${MAIN_SERVER}/products/${currentProductId}/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(()=>null);
-        console.error('Create review failed', err);
-        const msg = (err && err.detail) ? err.detail : 'Failed to post review';
-        initStatusMessage && initStatusMessage(msg);
-        return;
-      }
-
-      const created = await res.json();
-      // Prepend to list
-      const container = document.querySelector('.allComments');
-      // render at top
-      const firstChild = container.firstChild;
-      const tmp = document.createElement('div');
-      renderComment(created, tmp);
-      if (firstChild) container.insertBefore(tmp.firstChild, firstChild);
-      else container.appendChild(tmp.firstChild);
-
-      input.value = '';
-      selectedRating = 5;
-      lockStars(selectedRating - 1);
-      incrementCommentCount();
-      initStatusMessage && initStatusMessage('Review added');
-    }
-  } catch (err) {
-    console.error('Error posting review', err);
-    initStatusMessage && initStatusMessage('Failed to post review');
-  } finally {
-    const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
-    sendBtn && sendBtn.classList.remove('load');
-  }
-}
-
 // infinite scroll
 export function initCommentsInfiniteScroll() {
   const container = document.querySelector('.allComments');
   if (!container) return;
   container.addEventListener('scroll', () => {
-    if (!currentProductId) return;
-    if (loadingReviews) return;
+    if (!currentProductId || loadingReviews) return;
     if (container.scrollTop + container.clientHeight >= container.scrollHeight - 60) {
       loadProductReviews(currentProductId, false);
     }
@@ -268,17 +262,14 @@ export function initRatingSelector() {
       lockStars(index);
     });
   });
-  // initialize default
   lockStars(selectedRating - 1);
 }
 
-// init popup (wire send button and rating)
+// init popup
 export function initCommentsPopup() {
-  // wire send button
   const sendBtn = document.querySelector('.commentInput .fi-rr-paper-plane');
   if (sendBtn) sendBtn.addEventListener('click', postReview);
 
-  // enter key submits
   const input = document.querySelector('.commentInput input');
   if (input) {
     input.addEventListener('keydown', (e) => {
@@ -293,24 +284,17 @@ export function initCommentsPopup() {
   initCommentsInfiniteScroll();
 }
 
-// call this when opening popup with product id
+// open comments
 export function openCommentsForProduct(productId) {
-  // show popup first (re-uses your existing getPop('.comments') that opens popup)
-  try {
-    if (typeof getPop === 'function') getPop('.comments');
-  } catch(e){ /* ignore */ }
-
-  // set current product and load
+  try { if (typeof getPop === 'function') getPop('.comments'); } catch(e){ }
   currentProductId = productId;
   skipCount = 0;
   loadProductReviews(productId, true);
-  // focus the input after a short delay
   setTimeout(()=> {
     const input = document.querySelector('.commentInput input');
     input && input.focus();
   }, 300);
 }
 
-// expose for inline onclick handlers
 window.openCommentsForProduct = openCommentsForProduct;
 window.initCommentsPopup = initCommentsPopup;

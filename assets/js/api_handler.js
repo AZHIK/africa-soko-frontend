@@ -1018,13 +1018,15 @@ function openPostView(post, data, userPic, userName, badge) {
   postView.querySelector('.call2act h2').setAttribute('old', `Tsh. ${formatShort(data.price * 1.2)}`);
 
   const wishBtn = postView.querySelector('.wishlist-toggle');
-  if (isInWishlist(post.id)) {
+  if (wishBtn && isInWishlist(post.id)) {
     wishBtn.classList.replace('fi-rr-heart', 'fi-sr-heart');
   }
-  wishBtn.onclick = (e) => {
-    e.stopPropagation();
-    toggleWishlistItem(post);
-  };
+  if (wishBtn) {
+    wishBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleWishlistItem(post);
+    };
+  }
 
   // Attributes & cart / quick buy logic remains exactly the same
   allSpecs.innerHTML = '';
@@ -1506,34 +1508,56 @@ async function testPayment() {
     return null;
   }
 };
+// Helper to get headers with auth token
+function getAuthHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${localStorage.getItem("sokoni_identity")}`
+  };
+}
+
+// Submit profile changes
 async function submitProfileChanges() {
   const changes = collectProfileData();
   if (Object.keys(changes).length === 0) return;
-  let user_id = localStorage.getItem("sokoni_identity");
 
+  const btn = get(".profileChanges .call2action .default-btn");
   getPop(".profileChanges");
-  get(".profileChanges .call2action .default-btn").onclick = async () => {
-    get(".profileChanges .call2action .default-btn").classList.add("load");
-    fetch(`${MAIN_SERVER}/update_user`, {
-      method: "POST", credentials: "include",
-      headers: JSON_HEAD,
-      body: JSON.stringify({ id: user_id, data: changes })
-    }).then(rsp => {
-      if (rsp.status === 200) {
+
+  btn.onclick = async () => {
+    btn.classList.add("load");
+    try {
+      const rsp = await fetch(`${MAIN_SERVER}/update_user`, {
+        method: "POST",
+        credentials: "include",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ data: changes })
+      });
+
+      const data = await rsp.json();
+      if (rsp.status === 200 && data.status === "success") {
         setTimeout(() => {
-          shutPop(".profileChanges")
-          get(".profileChanges .call2action .default-btn").classList.remove("load");
-          initStatusMessage("Profile Updated Successfully😁🎉");
+          shutPop(".profileChanges");
+          btn.classList.remove("load");
+          initStatusMessage("Profile Updated Successfully 😁🎉");
         }, 1000);
+      } else {
+        btn.classList.remove("load");
+        alert(data.detail || "Failed to update profile");
       }
-    });
+    } catch (err) {
+      console.error(err);
+      btn.classList.remove("load");
+      alert("Network error. Please try again.");
+    }
   };
-};
+}
+
+// Handle profile picture changes
 async function profilePicChanges() {
   const profilePhotoUpdate = document.querySelector(".profilePhotoUpdate");
   
   profilePhotoUpdate.addEventListener("change", async () => {
-    let user_id = localStorage.getItem("sokoni_identity");
     const file = profilePhotoUpdate.files[0];
     if (!file) return;
 
@@ -1541,32 +1565,40 @@ async function profilePicChanges() {
     const filename = `profile_${randomString(25)}.${file.type.split("/")[1]}`;
     formData.append("file", file, filename);
 
-    fetch(`${MAIN_SERVER}/upload`, {
-      method: "POST", credentials: "include",
-      // headers: {
-      //   // "Authorization": `Bearer ${localStorage.getItem("sokoni_identity")}`,
-      //   "Content-Type": "multipart/form-data"
-      // },
-      body: formData
-    })
-    .then(rsp => rsp.json())
-    .then(data => {
-      if (data.filename) {
-        fetch(`${MAIN_SERVER}/update_user`, {
-          method: "POST", credentials: "include",
-          headers: JSON_HEAD,
-          body: JSON.stringify({
-            id: user_id,
-            data: { profile_pic: `${MAIN_SERVER}/sokoni_uploads/${data.filename}` }
-          })
+    try {
+      // Upload file
+      const uploadResp = await fetch(`${MAIN_SERVER}/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData
+      });
+      const uploadData = await uploadResp.json();
+      if (!uploadData.filename) throw new Error("Upload failed");
+
+      // Update profile_pic in user profile
+      const updateResp = await fetch(`${MAIN_SERVER}/update_user`, {
+        method: "POST",
+        credentials: "include",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          data: { profile_pic: `${MAIN_SERVER}/sokoni_uploads/${uploadData.filename}` }
         })
-        .then(rsp => rsp.json())
-        .then(res => {console.log(res); get('.profilePhotoDisplay').src = `${MAIN_SERVER}/sokoni_uploads/${data.filename}`;})
+      });
+
+      const updateData = await updateResp.json();
+      if (updateData.status === "success") {
+        document.querySelector('.profilePhotoDisplay').src = `${MAIN_SERVER}/sokoni_uploads/${uploadData.filename}`;
+      } else {
+        alert(updateData.detail || "Failed to update profile picture");
       }
-    })
-    .catch(err => console.error(err));
+
+    } catch (err) {
+      console.error(err);
+      alert("Profile picture upload failed. Please try again.");
+    }
   });
-};
+}
+
 async function getCheckoutData(cartData) {
   quickBuyItem = undefined;
   const cart = cartData || JSON.parse(localStorage.getItem('sokoni_cart')) || [];

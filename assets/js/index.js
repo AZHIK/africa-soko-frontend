@@ -3,7 +3,7 @@ const JSON_HEAD = {"Content-Type": "applicarion/json"}
 const RWS_SERVER = "";
 const CWS_SERVER = "";
 // const MAIN_SERVER = "http://127.0.0.1:8000";
-const MAIN_SERVER = "https://intent-tagged-conclusion-introductory.trycloudflare.com";
+const MAIN_SERVER = "https://tasks-roughly-reasonable-parliament.trycloudflare.com";
 //const socket = new WebSocket(`${MAIN_SERVER.replace("http", "ws")}/online_status`);
 const CLIENT_ID = "181406034089-stlf00e3mglhavcuk6uqav4i1dgvr073.apps.googleusercontent.com";
 let OTP = ""
@@ -438,18 +438,22 @@ function initTitleDesc(index){
         descrEl.textContent = target.descr;
     };
 };
-function initOnboardingSteps(){
+function initOnboardingSteps() {
   const onboarding = get('.section-content.onboarding');
   const stepsList = onboarding.querySelectorAll('.stepsList i');
   const call2Action = onboarding.querySelectorAll('.call2actionBtn');
   const stepsContent = onboarding.querySelector('.main-content');
 
   initTitleDesc(0);
-  setTimeout(()=>{
+  
+  setTimeout(() => {
     stepsList[0].classList.add('active');
-    call2Action[0].onclick = ()=>{
-      let leftMargin = call2Action[1].getAttribute('left');
-      leftMargin = Number(leftMargin)
+
+    // Previous button
+    call2Action[0].onclick = () => {
+      let leftMargin = Number(call2Action[1].getAttribute('left'));
+      if (leftMargin <= 0) return;
+
       stepsList[leftMargin].classList.remove('active');
 
       applyValues();
@@ -458,55 +462,67 @@ function initOnboardingSteps(){
 
       stepsContent.style.marginLeft = `calc(-${leftMargin - 1}00vw - var(--minimal-padding))`;
       call2Action[1].setAttribute('left', `${leftMargin - 1}`);
-      
-      if(leftMargin == 1){
-          call2Action[1].parentElement.classList.remove('active');
-      };
+
+      if (leftMargin - 1 === 0) {
+        call2Action[1].parentElement.classList.remove('active');
+      }
     };
-    call2Action[1].onclick = ()=>{
-      let leftMargin = call2Action[1].getAttribute('left');
-      leftMargin = Number(leftMargin)
-      // if( leftMargin == (stepsList.length - 1) ) {
-      //   applyValues();
-      // };
+
+    // Next button
+    call2Action[1].onclick = async () => {
+      let leftMargin = Number(call2Action[1].getAttribute('left'));
       try {
         call2Action[1].parentElement.classList.add('active');
         stepsList[leftMargin + 1].classList.add('active');
-        
+
         applyValues();
         initTitleDesc(leftMargin + 1);
         initLanguages();
-        
+
         stepsContent.style.marginLeft = `calc(-${leftMargin + 1}00vw - var(--minimal-padding))`;
         call2Action[1].setAttribute('left', `${leftMargin + 1}`);
       } catch (error) {
+        // Last step reached: submit onboarding data
         applyValues();
         call2Action[1].classList.add("load");
-        onboardData.categories = onboardData.categories.split("|")
 
-        fetch(`${MAIN_SERVER}/update_user`, {
-          method: "POST",
-          headers: JSON_HEAD,
-          body: JSON.stringify({
-            "id": localStorage.getItem("sokoni_identity"),
-            "data": onboardData
-          })
-        }).then(json_rsp=>{
-          if(json_rsp.status != 200) return;
-          localStorage.setItem("sokoni_role", onboardData.role);
-          
-          get('.section-content.onboarding').classList.add('disabled');
+        // Ensure categories is array
+        if (onboardData.categories && typeof onboardData.categories === "string") {
+          onboardData.categories = onboardData.categories.split("|");
+        }
+
+        try {
+          const rsp = await fetch(`${MAIN_SERVER}/update_user`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem("sokoni_identity")}`
+            },
+            body: JSON.stringify({ data: onboardData })
+          });
+
+          if (rsp.status !== 200) throw new Error("Failed to update user");
+
+          const data = await rsp.json();
+          if (data.status !== "success") throw new Error(data.detail || "Update failed");
+
+          localStorage.setItem("sokoni_role", onboardData.role || "customer");
+
+          onboarding.classList.add('disabled');
           get('.section-content.appContent').classList.add('active');
           getPop(".welcome");
           applyRole();
-          // loadExplorePosts();
-          // initAllEndpoints();
-        })
-        return;
+          // Optional: loadExplorePosts(); initAllEndpoints();
+        } catch (err) {
+          console.error("Onboarding submission failed:", err);
+          alert("Failed to complete onboarding. Please try again.");
+          call2Action[1].classList.remove("load");
+        }
       }
     };
   }, 1000);
-
+  
   window.addEventListener('click', ()=>{
     let targetIndex = call2Action[1].getAttribute('left');
     let targetContent = stepsContent.querySelectorAll('.stepContent')[targetIndex];
@@ -517,6 +533,7 @@ function initOnboardingSteps(){
     };
   });
 };
+
 function startOnboarding(response){
   let idToken;
   try{
@@ -577,6 +594,11 @@ function startOnboarding(response){
       //     };
       // });
     });
+  }).catch(error => {
+    console.error('Authentication request failed:', error);
+    alert('Google login failed. Please try again.');
+    const onbBtn = document.querySelector('.all-popups .signIn .default-btn.googleLogin');
+    onbBtn.classList.remove("load");
   });
 };
 function onboardingTrigger(){

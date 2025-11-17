@@ -205,7 +205,7 @@ async function loadPosts() {
           <h2 class="postPrice" old="Tsh. ${formatShort(data.price * 1.2)}">Tsh. ${formatMoney(data.price)}/-</h2>
           <div class="postActions">
             <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
-            <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(${post.id})"></i>
+            <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(event, ${post.id})"></i>
             <i class="fi fi-rr-bookmark"></i>
             <i class="fi fi-sr-star rating">0.0</i>
           </div>
@@ -271,13 +271,17 @@ async function loadInventory(){
     });
   });
 };
+
 async function loadMyOrders() {
   const ordersList = document.querySelector('.myOrders .ordersCont');
   const searchInput = document.querySelector('.myOrders .searchInp input');
 
   const rsp = await fetch(`${MAIN_SERVER}/get_orders`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem("sokoni_identity")}`
+    },
     body: JSON.stringify({ id: localStorage.getItem("sokoni_identity") })
   });
 
@@ -808,6 +812,7 @@ async function showLocations() {
     console.error("Failed to load locations:", err);
   }
 };
+
 async function addNewLocation(el) {
   el.classList.add("load");
   const locationTitle = get("#locationTitle").value || "New Location";
@@ -1181,7 +1186,7 @@ function renderPost(post, grid) {
     </div>
     <div class="postActions">
       <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
-      <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(${post.id})"></i>
+      <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(event, ${post.id})"></i>
       <i class="fi fi-rr-bookmark"></i>
       <i class="fi fi-sr-star rating">0.0</i>
     </div>
@@ -1600,27 +1605,61 @@ async function profilePicChanges() {
 }
 
 async function getCheckoutData(cartData) {
-  quickBuyItem = undefined;
+  let quickBuyItem = undefined;
+
+  // Get cart from argument or localStorage
   const cart = cartData || JSON.parse(localStorage.getItem('sokoni_cart')) || [];
-  if (cart.length === 0) return null;
-  fetch(`${MAIN_SERVER}/checkout_data`, {
-    method: "POST", credentials: "include",
-    headers: JSON_HEAD,
-    body: JSON.stringify({
-      id: localStorage.getItem("sokoni_identity"),
-      data: cart,
-      location_index: parseFloat(localStorage.getItem("location_index"))
-    })
-  })
-  .then(rsp => rsp.json())
-  .then(data => {
-    renderPrices(data, 0);
-    renderLocations(data);
-    getPop('.checkout');
+  if (cart.length === 0) {
+    console.log("Cart is empty. Nothing to send.");
+    return null;
+  }
+
+  // Map cart to match backend schema (CheckoutItem)
+  const payload = {
+    id: localStorage.getItem("sokoni_identity") || "anonymous",
+    data: cart.map(item => ({
+      product_id: item.product.id.toString(), // convert to string if required by schema
+      quantity: item.amount || item.quantity || 1
+    })),
+    location_index: parseFloat(localStorage.getItem("location_index")) || 0
+  };
+
+  console.log("Sending payload to /checkout_data:", payload);
+
+  try {
+    const response = await fetch(`${MAIN_SERVER}/checkout_data`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    // Log raw response first for debugging
+    const rawText = await response.text();
+    console.log("Raw response text:", rawText);
+
+    const data = JSON.parse(rawText);
+    console.log("Parsed response data:", data);
+
+    // Only call render functions if data is valid
+    if (data && data.total !== undefined && Array.isArray(data.distances)) {
+      renderPrices(data, 0);
+      renderLocations(data);
+      getPop('.checkout');
+    } else {
+      console.warn("Unexpected response structure:", data);
+    }
+
     return data;
-  })
-  .catch(err => console.error(err));
-};
+
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return null;
+  }
+}
+
+
+
 async function verifyPayment(data, btn, cartData) {
   let successAudio = new Audio('assets/audio/success.mp3');
   let failAudio = new Audio('assets/audio/failed.mp3');
@@ -1693,44 +1732,89 @@ async function verifyPayment(data, btn, cartData) {
     }
   }, 15000);
 };
-async function placeOrder(btn, cartData) {
-  console.log(cartData);
-  const cart = cartData || JSON.parse(localStorage.getItem('sokoni_cart')) || [];
-  if (cart.length === 0) return null;
-  btn.classList.add("load");
-  fetch(`${MAIN_SERVER}/checkout_confirm`, {
-    method: "POST", credentials: "include",
-    headers: JSON_HEAD,
-    body: JSON.stringify({
-      id: localStorage.getItem("sokoni_identity"),
-      data: cart,
-      phone: `255${get("#walletInput input").value.replaceAll("-", "")}`,
-      location_index: parseFloat(localStorage.getItem("location_index"))
-    })
-  })
-  .then(rsp => rsp.json())
-  .then(data => {
-    console.log(data);
-    if(data.status !== "success") throw new Error("Order failed");
-    verifyPayment(data, btn, cartData)
 
-    // let statusCheck = false;
-    // document.onvisibilitychange = () => {
-    //   if(statusCheck) return;
-    //   statusCheck = true;
-    //   verifyPayment(data, btn);
-    // };
-    // document.onblur = () => {
-    //   if(statusCheck) return;
-    //   statusCheck = true;
-    //   verifyPayment(data, btn);
-    // };
-  })
-  .catch(err => {
-    console.error(err);
+
+async function placeOrder(btn, cartData) {
+  const cart = cartData || JSON.parse(localStorage.getItem('sokoni_cart')) || [];
+  if (cart.length === 0) {
+    console.log("Cart empty, aborting order.");
+    return null;
+  }
+
+  btn.classList.add("load");
+
+  // Convert cart to backend schema
+  const payload = {
+    id: localStorage.getItem("sokoni_identity"),
+    order_ref: "DEV-" + Date.now(),      // fake temporary ref
+    token: "DEV_TOKEN",                  // fake token
+    cart: cart.map(item => ({
+      product_id: item.product.id.toString(),
+      quantity: item.amount || 1
+    })),
+    location_index: parseFloat(localStorage.getItem("location_index")) || 0
+  };
+
+  console.log("Sending order directly to /place_order:", payload);
+
+  try {
+    const rsp = await fetch(`${MAIN_SERVER}/place_order`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("sokoni_identity")}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const rawText = await rsp.text();
+    console.log("Raw response:", rawText);
+
+    const data = JSON.parse(rawText);
+    console.log("Parsed response:", data);
+
+    const successAudio = new Audio('assets/audio/success.mp3');
+    const failAudio = new Audio('assets/audio/failed.mp3');
+    successAudio.volume = 1;
+    failAudio.volume = 1;
+
+    if (data.status === "success") {
+      successAudio.play();
+      fireAll();
+
+      localStorage.removeItem('sokoni_cart');
+      applyCartData();
+      btn.classList.remove("load");
+      shutPop('.checkout');
+      getPop('.paymentSuccess');
+
+      console.log("Order placed successfully!");
+      return "SUCCESS";
+    } else {
+      failAudio.play();
+      btn.classList.remove("load");
+      shutPop('.checkout');
+      console.log("Order failed:", data);
+      return "FAILED";
+    }
+
+  } catch (err) {
+    console.error("Place order error:", err);
+
+    const failAudio = new Audio('assets/audio/failed.mp3');
+    failAudio.volume = 1;
+    failAudio.play();
+
     btn.classList.remove("load");
-  });
-};
+    shutPop('.checkout');
+
+    return "FAILED";
+  }
+}
+
+
+
 async function getUserLocation(location_title) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {

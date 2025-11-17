@@ -285,7 +285,8 @@ export function initCommentsPopup() {
 }
 
 // open comments
-export function openCommentsForProduct(productId) {
+export function openCommentsForProduct(event, productId) {
+  event.stopPropagation();
   try { if (typeof getPop === 'function') getPop('.comments'); } catch(e){ }
   currentProductId = productId;
   skipCount = 0;

@@ -3,7 +3,7 @@ const JSON_HEAD = {"Content-Type": "applicarion/json"}
 const RWS_SERVER = "";
 const CWS_SERVER = "";
 // const MAIN_SERVER = "http://127.0.0.1:8000";
-const MAIN_SERVER = "https://tasks-roughly-reasonable-parliament.trycloudflare.com";
+const MAIN_SERVER = "https://wheel-female-enrolled-yard.trycloudflare.com";
 //const socket = new WebSocket(`${MAIN_SERVER.replace("http", "ws")}/online_status`);
 const CLIENT_ID = "181406034089-stlf00e3mglhavcuk6uqav4i1dgvr073.apps.googleusercontent.com";
 let OTP = ""
@@ -616,6 +616,7 @@ function onboardingTrigger(){
     get(".section-content.startup").classList.add("disabled");
     get(".section-content.appContent").classList.add("active");
     getPop(".welcome");
+    showLocations();
   });
 };
 function googleLogin() {
@@ -721,6 +722,7 @@ function getIn(user_data){
     } catch (error) {};
   });
 };
+
 function handleLoader(){
   const loader = document.querySelector('.loader');
   
@@ -947,5 +949,4 @@ onboardingTrigger();
 switchTheme();
 applyLocation().then(coords => {
   onboardData.location = coords;
-  showLocations();
 });

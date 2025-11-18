@@ -778,17 +778,20 @@ async function sendMessage(to, type="text", msg_content) {
 
 async function showLocations() {
   try {
-    const userId = localStorage.getItem("sokoni_identity"); // Or however you store JWT
-    console.log(userId)
+    const userId = localStorage.getItem("sokoni_identity");
+    console.log(userId);
     const response = await fetch(`${MAIN_SERVER}/get_user_locations`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${userId}`
+      },
       body: JSON.stringify({ id: userId })
     });
 
     const data = await response.json();
     if (!data || !Array.isArray(data)) return;
-    localStorage.setItem("sokoni_locations", JSON.stringify(data))
+    localStorage.setItem("sokoni_locations", JSON.stringify(data));
 
     const container = document.querySelector(".addressList");
     container.innerHTML = ""; // Clear existing addresses
@@ -822,7 +825,10 @@ async function addNewLocation(el) {
     const userId = localStorage.getItem("sokoni_identity"); // adjust if you store user differently
     const response = await fetch(`${MAIN_SERVER}/add_user_location`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${userId}`
+      },
       body: JSON.stringify({
         id: userId,
         location: location
@@ -841,6 +847,7 @@ async function addNewLocation(el) {
     console.error("Error adding location:", err);
   }
 };
+
 async function deleteLocation(location) {
   try {
     const userId = localStorage.getItem("sokoni_identity"); // or however you store JWT

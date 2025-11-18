@@ -18,7 +18,18 @@ export function renderComment(review, container, currentUserId = null) {
   const avatar = (review.user && review.user.profile_pic) ? review.user.profile_pic : 'assets/images/faces/user1.jfif';
   const username = (review.user && review.user.username) ? review.user.username : 'anonymous';
   const badgeImg = (review.user && review.user.verification) ? `<img src="assets/images/badges/${review.user.verification}.png">` : '';
-  const ratingHtml = (review.rating || review.rating === 0) ? `<i class="fi fi-sr-star pr">${review.rating}</i>` : '';
+  let ratingHtml = '';
+  if (review.rating > 0) {
+    let stars = '';
+    for (let i = 0; i < 5; i++) {
+      if (i < review.rating) {
+        stars += `<i class="fi fi-sr-star" style="color: gold;"></i>`;
+      } else {
+        stars += `<i class="fi fi-rr-star" style="color: #d3d3d3;"></i>`;
+      }
+    }
+    ratingHtml = `<div class="rating-stars" style="display: flex; gap: 2px;">${stars}</div>`;
+  }
   const dateStr = review.created_at ? ` <small class="rev-date">${new Date(review.created_at).toLocaleString()}</small>` : '';
 
   commentDiv.innerHTML = `

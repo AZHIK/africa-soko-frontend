@@ -167,7 +167,8 @@ async function loadPosts() {
         description: p.description,
         category_id: p.category_id,
         images: p.images || [],
-        attributes: p.attributes || []
+        attributes: p.attributes || [],
+        average_rating: p.average_rating || 0
       }
     }));
 
@@ -207,7 +208,7 @@ async function loadPosts() {
             <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
             <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(event, ${post.id})"></i>
             <i class="fi fi-rr-bookmark"></i>
-            <i class="fi fi-sr-star rating">0.0</i>
+            <i class="fi fi-sr-star rating">${(data.average_rating || 0).toFixed(1)}</i>
           </div>
         </div>
         <div class="postDetails">
@@ -952,7 +953,8 @@ async function loadExplorePosts() {
         description: p.description,
         category_id: p.category_id,
         images: p.images || [],
-        attributes: p.attributes || []
+        attributes: p.attributes || [],
+        average_rating: p.average_rating || 0
       }
     }));
 
@@ -1195,7 +1197,7 @@ function renderPost(post, grid) {
       <i class="fi fi-rr-heart wishlist-toggle" data-product-id="${post.id}"></i>
       <i class="fi fi-rr-comment-alt-middle comment-btn" onclick="openCommentsForProduct(event, ${post.id})"></i>
       <i class="fi fi-rr-bookmark"></i>
-      <i class="fi fi-sr-star rating">0.0</i>
+      <i class="fi fi-sr-star rating">${(data.average_rating || 0).toFixed(1)}</i>
     </div>
   `;
 
@@ -1868,11 +1870,12 @@ function renderLocations(data) {
   locations.forEach((loc, idx) => {
     const div = document.createElement("div");
     div.className = "optSlt" + (idx === 0 ? " active" : "");
+    const address = loc.address || "";
     div.innerHTML = `
       <i class="fi ${idx === 0 ? "fi-sr-home-location" : "fi-sr-marker"}"></i>
       <div class="data">
         <h4>${loc.title}</h4>
-        <p>${loc.address.length > 25 ? loc.address.slice(0, 25) + "..." : loc.address}</p>
+        <p>${address.length > 25 ? address.slice(0, 25) + "..." : address}</p>
       </div>
       <i class="fi fi-rr-check"></i>
     `;

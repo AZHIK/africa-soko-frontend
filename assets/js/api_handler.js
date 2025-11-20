@@ -132,6 +132,11 @@ async function initGetStories() {
   })
 };
 
+function getImageUrl(filename) {
+  if (!filename) return 'assets/images/products/iphone0.jfif';
+  return `${MAIN_SERVER}/uploads/${filename}`;
+}
+
 
 async function loadPosts() {
   const postList = get('.postList.mainFeedPosts');
@@ -180,7 +185,9 @@ async function loadPosts() {
       const userPic = post.host.profile_pic;
       const userName = post.host.username;
       const badge = post.host.verification;
-      const imageUrl = data.images?.[0] || 'assets/images/products/iphone0.jfif';
+      const imageUrl = data.images?.length
+      ? getImageUrl(data.images[0].filename || data.images[0])
+      : 'assets/images/products/iphone0.jfif';
       const hashtags = extractHashtags(data.description || '');
 
       
@@ -256,7 +263,10 @@ async function loadInventory(){
     myInventory.innerHTML = '';
     posts.forEach(post => {
       const data = post.data || {};
-      const imageUrl = data.images?.[0] || 'assets/images/products/iphone0.jfif';
+      const imageUrl = data.images?.length
+      ? getImageUrl(data.images[0].filename || data.images[0])
+      : 'assets/images/products/iphone0.jfif';
+;
       const postCont = document.createElement('div');
       postCont.className = 'miniPost';
       postCont.innerHTML = `
@@ -1019,7 +1029,8 @@ function openPostView(post, data, userPic, userName, badge) {
   imgScroll.innerHTML = '<div class="dummy"></div>';
   navScroll.innerHTML = '';
 
-  data.images?.forEach((imgUrl, i) => {
+  data.images?.forEach((img, i) => {
+    const imgUrl = `${MAIN_SERVER}/uploads/${img.filename || img}`;
     imgScroll.innerHTML += `<img src="${imgUrl}"/>`;
     navScroll.innerHTML += `<img class="nav ${i === 0 ? 'active' : ''}" src="${imgUrl}"/>`;
   });
@@ -1173,7 +1184,10 @@ function renderPost(post, grid) {
   const userPic = post.host_profile_pic || 'assets/images/faces/user1.jfif';
   const userName = post.host_username || 'anonymous';
   const badge = post.host_verification || 'null';
-  const imageUrl = data.images?.[0] || 'assets/images/products/iphone0.jfif';
+  const imageUrl = data.images?.length
+  ? getImageUrl(data.images[0].filename || data.images[0])
+  : 'assets/images/products/iphone0.jfif';
+;
 
   
 

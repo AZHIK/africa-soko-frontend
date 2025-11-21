@@ -1181,9 +1181,9 @@ function openPostView(post, data, userPic, userName, badge) {
 
 function renderPost(post, grid) {
   const data = post.data || {};
-  const userPic = post.host_profile_pic || 'assets/images/faces/user1.jfif';
-  const userName = post.host_username || 'anonymous';
-  const badge = post.host_verification || 'null';
+  const userPic = post.host.profile_pic || 'assets/images/faces/user1.jfif';
+  const userName = post.host.username || 'anonymous';
+  const badge = post.host.verification || 'null';
   const imageUrl = data.images?.length
   ? getImageUrl(data.images[0].filename || data.images[0])
   : 'assets/images/products/iphone0.jfif';

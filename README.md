@@ -8,7 +8,7 @@ To run this project locally, you need to have [Node.js](https.nodejs.org/) insta
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/AZHIK/africa-soko-frontend
+    git clone https://github.com/AZHIK/africa-soko-frontend.git
     ```
 2.  Navigate to the project directory:
     ```bash

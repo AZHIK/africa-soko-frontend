@@ -258,7 +258,7 @@ async function loadPosts(filters = {}) {
 
     for (const post of posts) {
       const data = post.data;
-      const userPic = post.host.profile_pic;
+      const userPic = post.host_profile_pic;
       const userName = post.host.username;
       const badge = post.host.verification;
       const imageUrl = data.images?.length

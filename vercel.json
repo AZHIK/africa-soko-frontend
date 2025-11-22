@@ -1,0 +1,9 @@
+{
+  "name": "research-gears-recruits",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -47,11 +47,11 @@ function initAddStory() {
 
         const now = new Date();
         const timestamp = now.getFullYear() + "-" +
-                          String(now.getMonth() + 1).padStart(2, "0") + "-" +
-                          String(now.getDate()).padStart(2, "0") + "T" +
-                          String(now.getHours()).padStart(2, "0") + ":" +
-                          String(now.getMinutes()).padStart(2, "0") + "_" +
-                          String(now.getSeconds()).padStart(2, "0");
+          String(now.getMonth() + 1).padStart(2, "0") + "-" +
+          String(now.getDate()).padStart(2, "0") + "T" +
+          String(now.getHours()).padStart(2, "0") + ":" +
+          String(now.getMinutes()).padStart(2, "0") + "_" +
+          String(now.getSeconds()).padStart(2, "0");
 
         const randomSuffix = Math.random().toString(36).substring(2, 10);
         const fileExt = file.type.split("/")[1];
@@ -65,35 +65,35 @@ function initAddStory() {
           credentials: "include",
           body: formData
         })
-        .then(rsp => {
-          if (rsp.status === 200) {
-            fetch(`${MAIN_SERVER}/post_story`, {
-              method: "POST",
-              credentials: "include",
-              headers: JSON_HEAD,
-              body: JSON.stringify({
-                "id": localStorage.getItem("sokoni_identity"),
-                "data": {
-                  "story_url": `${MAIN_SERVER}/skn_uploads/${fileName}`,
-                  "post_date": timestamp.split("_")[0],
-                  "caption": captionInput.value
-                }
+          .then(rsp => {
+            if (rsp.status === 200) {
+              fetch(`${MAIN_SERVER}/post_story`, {
+                method: "POST",
+                credentials: "include",
+                headers: JSON_HEAD,
+                body: JSON.stringify({
+                  "id": localStorage.getItem("sokoni_identity"),
+                  "data": {
+                    "story_url": `${MAIN_SERVER}/skn_uploads/${fileName}`,
+                    "post_date": timestamp.split("_")[0],
+                    "caption": captionInput.value
+                  }
+                })
               })
-            })
-            .then(async rsp => {
-              if (rsp.status === 200) {
-                captionInput.value = "";
-                setTimeout(async () => {
-                  let js_dt = await rsp.json();
-                  console.log(js_dt);
-                  captionBtn.classList.remove("load");
-                  shutPop(".caption");
-                  initGetStories();
-                }, 1000);
-              }
-            });
-          }
-        });
+                .then(async rsp => {
+                  if (rsp.status === 200) {
+                    captionInput.value = "";
+                    setTimeout(async () => {
+                      let js_dt = await rsp.json();
+                      console.log(js_dt);
+                      captionBtn.classList.remove("load");
+                      shutPop(".caption");
+                      initGetStories();
+                    }, 1000);
+                  }
+                });
+            }
+          });
       };
     });
   });
@@ -127,10 +127,86 @@ function renderStories(data) {
 };
 async function initGetStories() {
   fetchStories()
-  .then(dt => {
-    
-  })
+    .then(dt => {
+
+    })
 };
+
+async function loadCategories() {
+  try {
+    const response = await fetch(`${MAIN_SERVER}/categories/allcategories`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    const categories = await response.json();
+    const container = document.querySelector('.recommend');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // Add "All" button
+    const allBtn = document.createElement('p');
+    allBtn.className = 'default-btn active';
+    allBtn.textContent = 'All';
+    allBtn.setAttribute('data-cat-id', '');
+    allBtn.onclick = () => {
+      container.querySelectorAll('.default-btn').forEach(b => b.classList.remove('active'));
+      allBtn.classList.add('active');
+      const searchInput = document.querySelector('.exploreCont .searchBar input');
+      const searchTerm = searchInput ? searchInput.value.trim() : '';
+      loadExplorePosts({ search: searchTerm });
+    };
+    container.appendChild(allBtn);
+
+    categories.forEach(cat => {
+      const btn = document.createElement('p');
+      btn.className = 'default-btn';
+      btn.textContent = cat.name;
+      btn.setAttribute('data-cat-id', cat.id);
+      btn.onclick = () => {
+        container.querySelectorAll('.default-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const searchInput = document.querySelector('.exploreCont .searchBar input');
+        const searchTerm = searchInput ? searchInput.value.trim() : '';
+        loadExplorePosts({ category_id: cat.id, search: searchTerm });
+      };
+      container.appendChild(btn);
+    });
+
+  } catch (err) {
+    console.error("Failed to load categories:", err);
+  }
+}
+
+function initSearch() {
+  const searchInput = document.querySelector('.exploreCont .searchBar input');
+  if (!searchInput) return;
+
+  let timeout = null;
+  const performSearch = () => {
+    const searchTerm = searchInput.value.trim();
+    const activeCategoryBtn = document.querySelector('.recommend .default-btn.active');
+    const categoryId = activeCategoryBtn ? activeCategoryBtn.getAttribute('data-cat-id') : null;
+
+    const filters = { search: searchTerm };
+    if (categoryId) filters.category_id = categoryId;
+
+    loadExplorePosts(filters);
+  };
+
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(performSearch, 500);
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(timeout);
+      performSearch();
+    }
+  });
+}
+
 
 function getImageUrl(filename) {
   if (!filename) return 'assets/images/products/iphone0.jfif';
@@ -138,7 +214,7 @@ function getImageUrl(filename) {
 }
 
 
-async function loadPosts() {
+async function loadPosts(filters = {}) {
   const postList = get('.postList.mainFeedPosts');
   postList.innerHTML = '<img src="assets/images/loader.gif" class="loaderGif">';
 
@@ -146,7 +222,7 @@ async function loadPosts() {
     const postsRes = await fetch(`${MAIN_SERVER}/products/get_products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skip: 0, limit: 100 })
+      body: JSON.stringify({ skip: 0, limit: 100, ...filters })
     });
 
     const products = await postsRes.json();
@@ -186,11 +262,11 @@ async function loadPosts() {
       const userName = post.host.username;
       const badge = post.host.verification;
       const imageUrl = data.images?.length
-      ? getImageUrl(data.images[0].filename || data.images[0])
-      : 'assets/images/products/iphone0.jfif';
+        ? getImageUrl(data.images[0].filename || data.images[0])
+        : 'assets/images/products/iphone0.jfif';
       const hashtags = extractHashtags(data.description || '');
 
-      
+
 
       const postCont = document.createElement('div');
       postCont.className = 'postCont';
@@ -231,7 +307,7 @@ async function loadPosts() {
 
       // Click to view product
       postCont.querySelector(".postClick").onclick = () => openPostView(post, data, userPic, userName, badge);
-      
+
       const wishBtn = postCont.querySelector('.wishlist-toggle');
       if (isInWishlist(post.id)) {
         wishBtn.classList.replace('fi-rr-heart', 'fi-sr-heart');
@@ -240,7 +316,7 @@ async function loadPosts() {
         e.stopPropagation();
         toggleWishlistItem(post);
       };
-      
+
       postList.appendChild(postCont);
     }
 
@@ -251,25 +327,25 @@ async function loadPosts() {
 }
 
 
-async function loadInventory(){
+async function loadInventory() {
   const myInventory = document.querySelector('.myInventory .quickList');
   fetch(`${MAIN_SERVER}/get_inventory_products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ "id": localStorage.getItem("sokoni_identity") })
   })
-  .then(rsp => rsp.json())
-  .then(posts => {
-    myInventory.innerHTML = '';
-    posts.forEach(post => {
-      const data = post.data || {};
-      const imageUrl = data.images?.length
-      ? getImageUrl(data.images[0].filename || data.images[0])
-      : 'assets/images/products/iphone0.jfif';
-;
-      const postCont = document.createElement('div');
-      postCont.className = 'miniPost';
-      postCont.innerHTML = `
+    .then(rsp => rsp.json())
+    .then(posts => {
+      myInventory.innerHTML = '';
+      posts.forEach(post => {
+        const data = post.data || {};
+        const imageUrl = data.images?.length
+          ? getImageUrl(data.images[0].filename || data.images[0])
+          : 'assets/images/products/iphone0.jfif';
+        ;
+        const postCont = document.createElement('div');
+        postCont.className = 'miniPost';
+        postCont.innerHTML = `
         <p class="price" old="Tsh. ${formatShort(data.price * 1.2)}">Tsh. ${formatMoney(data.price)}</p>
         <div class="call2act">
           <i class="fi fi-rr-copy"></i>
@@ -277,10 +353,10 @@ async function loadInventory(){
           <i class="fi fi-rr-trash"></i>
         </div>
       `;
-      postCont.style.backgroundImage = `url(${imageUrl})`;
-      myInventory.appendChild(postCont);
+        postCont.style.backgroundImage = `url(${imageUrl})`;
+        myInventory.appendChild(postCont);
+      });
     });
-  });
 };
 
 async function loadMyOrders() {
@@ -289,7 +365,7 @@ async function loadMyOrders() {
 
   const rsp = await fetch(`${MAIN_SERVER}/get_orders`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${localStorage.getItem("sokoni_identity")}`
     },
@@ -440,7 +516,7 @@ async function loadClientsOrders() {
         ordersList.appendChild(el);
 
         const btn = el.querySelector('.btn-action');
-        if(order.ready) btn.remove();
+        if (order.ready) btn.remove();
         btn.addEventListener('click', async () => {
           btn.classList.add("load")
           if (!order.delivered) {
@@ -449,15 +525,15 @@ async function loadClientsOrders() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: order.id })
             })
-            .then(rsp => rsp.json())
-            .then(js_dt=>{
-              console.log(js_dt);
-              btn.remove();
-              initStatusMessage("Order has been set ready, Successfully!!😁🎉")
-              el.querySelector('.el-status').innerText = 'order ready';
-              el.querySelector('.el-status').className = 'el-status delivered';
-            })
-            
+              .then(rsp => rsp.json())
+              .then(js_dt => {
+                console.log(js_dt);
+                btn.remove();
+                initStatusMessage("Order has been set ready, Successfully!!😁🎉")
+                el.querySelector('.el-status').innerText = 'order ready';
+                el.querySelector('.el-status').className = 'el-status delivered';
+              })
+
           }
         });
       });
@@ -475,113 +551,113 @@ async function loadProfileData(id) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id })
   })
-  .then(rsp => rsp.json())
-  .then(profile => {
-    if (profile.status !== 'success') return;
+    .then(rsp => rsp.json())
+    .then(profile => {
+      if (profile.status !== 'success') return;
 
-    const data = profile.data;
-    const view = document.querySelector('.profileView.otherUsersProfile');
+      const data = profile.data;
+      const view = document.querySelector('.profileView.otherUsersProfile');
 
-    // Profile image
-    const profileImg = view.querySelector('.profilePhoto');
-    profileImg.src = data.profile_pic || 'assets/images/faces/user0.jfif';
+      // Profile image
+      const profileImg = view.querySelector('.profilePhoto');
+      profileImg.src = data.profile_pic || 'assets/images/faces/user0.jfif';
 
-    // Name and username
-    const nameEl = view.querySelector('.data h2');
-    let userDisplayName = data.name || data.full_name || 'Unnamed User';
-    if(userDisplayName.length >= 18){
-      userDisplayName = userDisplayName.split(" ")[0];
-    };
-    nameEl.textContent = userDisplayName;
-
-    const usernameEl = view.querySelector('.data p');
-    usernameEl.innerHTML = `@${data.username}`;
-    
-    // Verification badge
-    const badge = document.createElement('img');
-    badge.src = `assets/images/badges/${data.verification}.png`;
-    badge.alt = 'verified';
-    usernameEl.appendChild(badge);
-
-    // Bio
-    const bioEl = view.querySelector('.biography');
-    data.bio = embedLinks(data.bio || '');
-    bioEl.textContent = data.bio || 'No bio available.';
-
-    // Optionally add “more” if bio is long
-    if (data.bio && data.bio.length > 150) {
-      bioEl.innerHTML = `${data.bio.substring(0, 150)}... <b>more</b>`;
-      bioEl.querySelector('b').onclick = () => {
-        let bioFull = data.bio.replaceAll("\n", "<br>");
-        let bioSct = get('.fullBio .bioContent');
-        bioSct.innerHTML = `<b>@${data.username}</b> ${bioFull}`;
-        getPop('.fullBio');
+      // Name and username
+      const nameEl = view.querySelector('.data h2');
+      let userDisplayName = data.name || data.full_name || 'Unnamed User';
+      if (userDisplayName.length >= 18) {
+        userDisplayName = userDisplayName.split(" ")[0];
       };
-    }
+      nameEl.textContent = userDisplayName;
 
-    // following / followers
-    let followedList = JSON.parse(localStorage.getItem('sokoni_followed_users')) || [];
-    const followBtn = view.querySelector('.followUser');
-    const stats = view.querySelectorAll('.userStats p');
-    view.querySelector("i.sendChat").onclick = ()=>{
-      getConversation(id, [data.profile_pic, userDisplayName]);
-    }
+      const usernameEl = view.querySelector('.data p');
+      usernameEl.innerHTML = `@${data.username}`;
 
-    if (followedList.includes(id)) {
-      followBtn.textContent = 'unfollow';
-    }else{
-      followBtn.textContent = 'follow';
-    }
-    stats[0].setAttribute('size', '120k'); // followers count
-    followBtn.onclick = () => {
-      followBtn.classList.toggle('load');
-      fetch(`${MAIN_SERVER}/follow_user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          user_id: localStorage.getItem('sokoni_identity'),
-          target_id: id
+      // Verification badge
+      const badge = document.createElement('img');
+      badge.src = `assets/images/badges/${data.verification}.png`;
+      badge.alt = 'verified';
+      usernameEl.appendChild(badge);
+
+      // Bio
+      const bioEl = view.querySelector('.biography');
+      data.bio = embedLinks(data.bio || '');
+      bioEl.textContent = data.bio || 'No bio available.';
+
+      // Optionally add “more” if bio is long
+      if (data.bio && data.bio.length > 150) {
+        bioEl.innerHTML = `${data.bio.substring(0, 150)}... <b>more</b>`;
+        bioEl.querySelector('b').onclick = () => {
+          let bioFull = data.bio.replaceAll("\n", "<br>");
+          let bioSct = get('.fullBio .bioContent');
+          bioSct.innerHTML = `<b>@${data.username}</b> ${bioFull}`;
+          getPop('.fullBio');
+        };
+      }
+
+      // following / followers
+      let followedList = JSON.parse(localStorage.getItem('sokoni_followed_users')) || [];
+      const followBtn = view.querySelector('.followUser');
+      const stats = view.querySelectorAll('.userStats p');
+      view.querySelector("i.sendChat").onclick = () => {
+        getConversation(id, [data.profile_pic, userDisplayName]);
+      }
+
+      if (followedList.includes(id)) {
+        followBtn.textContent = 'unfollow';
+      } else {
+        followBtn.textContent = 'follow';
+      }
+      stats[0].setAttribute('size', '120k'); // followers count
+      followBtn.onclick = () => {
+        followBtn.classList.toggle('load');
+        fetch(`${MAIN_SERVER}/follow_user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: localStorage.getItem('sokoni_identity'),
+            target_id: id
+          })
         })
-      })
-      .then(rsp => rsp.json())
-      .then(res => {
-        let followedList = JSON.parse(localStorage.getItem('sokoni_followed_users')) || [];
-        if (res.follow_state === 'followed') {
-          followBtn.textContent = 'unfollow';
-          if (!followedList.includes(id)) followedList.push(id);
-        } else if (res.follow_state === 'unfollowed') {
-          followBtn.textContent = 'follow';
-          followedList = followedList.filter(uid => uid !== id);
-        }
-        localStorage.setItem('sokoni_followed_users', JSON.stringify(followedList));
-        setTimeout(() => followBtn.classList.remove('load'), 500);
-      });
-    };
+          .then(rsp => rsp.json())
+          .then(res => {
+            let followedList = JSON.parse(localStorage.getItem('sokoni_followed_users')) || [];
+            if (res.follow_state === 'followed') {
+              followBtn.textContent = 'unfollow';
+              if (!followedList.includes(id)) followedList.push(id);
+            } else if (res.follow_state === 'unfollowed') {
+              followBtn.textContent = 'follow';
+              followedList = followedList.filter(uid => uid !== id);
+            }
+            localStorage.setItem('sokoni_followed_users', JSON.stringify(followedList));
+            setTimeout(() => followBtn.classList.remove('load'), 500);
+          });
+      };
 
 
-    // additional info
-    stats[1].setAttribute('size', '1,500'); // sold products
-    stats[2].setAttribute('size', '3.5'); // rating
+      // additional info
+      stats[1].setAttribute('size', '1,500'); // sold products
+      stats[2].setAttribute('size', '3.5'); // rating
 
 
-    // Business Location
-    const locationEl = view.querySelector('.bussinessLocation .location p.shopAddress');
-    const openMaps = view.querySelector('.bussinessLocation .location i.openMaps');
+      // Business Location
+      const locationEl = view.querySelector('.bussinessLocation .location p.shopAddress');
+      const openMaps = view.querySelector('.bussinessLocation .location i.openMaps');
 
-    locationEl.textContent = data.locations[0].address || 'Location not set';
-    openMaps.onclick = () => {
-      let coords = data.locations[0].coordinates;
-      const link = `https://www.google.com/maps?q=${coords[0]},${coords[1]}`;
-      window.open(link, '_blank');
-    };
+      locationEl.textContent = data.locations[0].address || 'Location not set';
+      openMaps.onclick = () => {
+        let coords = data.locations[0].coordinates;
+        const link = `https://www.google.com/maps?q=${coords[0]},${coords[1]}`;
+        window.open(link, '_blank');
+      };
 
-    console.log('User categories:', data.categories);
-    console.log('User locations:', data.locations);
-    getFloater('.profileView');
-  })
-  .catch(err => console.error('Error loading profile:', err));
+      console.log('User categories:', data.categories);
+      console.log('User locations:', data.locations);
+      getFloater('.profileView');
+    })
+    .catch(err => console.error('Error loading profile:', err));
 };
-async function displayConversations(){
+async function displayConversations() {
   let rsp = await fetch(`${MAIN_SERVER}/last_conversation`, {
     method: 'POST', credentials: "include",
     headers: { 'Content-Type': 'application/json' },
@@ -591,7 +667,7 @@ async function displayConversations(){
   console.log(data);
 
   let unread = JSON.parse(localStorage.getItem("sokoni_unread")) || {};
-  data.forEach(dt=>{
+  data.forEach(dt => {
     dt["unread"] = unread[dt["sender_id"]]
   });
   renderChats(data || []);
@@ -599,7 +675,7 @@ async function displayConversations(){
 async function getConversation(target_id, user_data) {
   get(".messageProfilePic").src = user_data[0]
   get(".messageFullName").textContent = user_data[1]
-  if (!user_data){
+  if (!user_data) {
     let rsp = await fetch(`${MAIN_SERVER}/get_user_profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -635,7 +711,7 @@ async function getConversation(target_id, user_data) {
       msg.msg_content = msg.msg_content.replace(/[<>]/g, "");
       if (isSent) {
         let tempSent = {
-          "text":`
+          "text": `
             <div class="sent">
               <p time="${msgTime}">
                 <span>${msg.msg_content}</span>
@@ -643,7 +719,7 @@ async function getConversation(target_id, user_data) {
               </p>
             </div>
           `,
-          "image":`
+          "image": `
             <div class="sent">
               <p time="${msgTime}">
                 <img src="${msg.msg_content}">
@@ -651,7 +727,7 @@ async function getConversation(target_id, user_data) {
               </p>
             </div>
           `,
-          "link":`
+          "link": `
             <div class="sent">
               <p time="${msgTime}">
                 <span>${msg.msg_content}</span>
@@ -663,15 +739,15 @@ async function getConversation(target_id, user_data) {
         chatContainer.innerHTML += tempSent[msg.msg_type];
       } else {
         let tempRec = {
-          "text":`
+          "text": `
             <p class="rec" time="${msgTime}">${msg.msg_content}</p>
           `,
-          "image":`
+          "image": `
             <p class="rec" time="${msgTime}">
               <img src="${msg.msg_content}">
             </p>
           `,
-          "link":`
+          "link": `
             <p class="rec" time="${msgTime}">${msg.msg_content}</p>
           `,
         }
@@ -687,13 +763,13 @@ async function getConversation(target_id, user_data) {
 
     console.log(target_id)
 
-    document.querySelector('.sendInput .fi-rr-paper-plane').onclick = ()=>{
+    document.querySelector('.sendInput .fi-rr-paper-plane').onclick = () => {
       sendMessage(target_id);
     };
     document.querySelector('.sendInput input[type="text"]').onkeydown = (e) => {
       if (e.key === 'Enter') sendMessage(target_id);
     };
-    document.querySelector('.sendInput input[type="file"]').onchange = ()=>{
+    document.querySelector('.sendInput input[type="file"]').onchange = () => {
       let user_id = localStorage.getItem("sokoni_identity");
       const file = document.querySelector('.sendInput input[type="file"]').files[0];
       if (!file) return;
@@ -710,20 +786,20 @@ async function getConversation(target_id, user_data) {
         // },
         body: formData
       })
-      .then(rsp => rsp.json())
-      .then(data => {
-        if (data.filename) {
-          let photoURL = `${MAIN_SERVER}/sokoni_uploads/${data.filename}`;
-          sendMessage(target_id, "image", photoURL);
-        }
-      })
-      .catch(err => console.error(err));
+        .then(rsp => rsp.json())
+        .then(data => {
+          if (data.filename) {
+            let photoURL = `${MAIN_SERVER}/sokoni_uploads/${data.filename}`;
+            sendMessage(target_id, "image", photoURL);
+          }
+        })
+        .catch(err => console.error(err));
     };
   } catch (err) {
     console.error("Conversation Load Error:", err);
   }
 };
-async function sendMessage(to, type="text", msg_content) {
+async function sendMessage(to, type = "text", msg_content) {
   try {
     const input = document.querySelector('.sendInput input[type="text"]');
     const content = msg_content || input.value.trim();
@@ -793,7 +869,7 @@ async function showLocations() {
     console.log(userId);
     const response = await fetch(`${MAIN_SERVER}/get_user_locations`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${userId}`
       },
@@ -836,7 +912,7 @@ async function addNewLocation(el) {
     const userId = localStorage.getItem("sokoni_identity"); // adjust if you store user differently
     const response = await fetch(`${MAIN_SERVER}/add_user_location`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${userId}`
       },
@@ -903,7 +979,7 @@ async function loadMyProfile() {
     user["lastName"] = user.name.split(" ")[1];
     get(".profilePhotoDisplay").src = user["profile_pic"] || "assets/images/default.png";
     get(".referalLinkDisplay").textContent = `${location.origin}/#${data["user_id"]}`;
-    get(".referalLinkCopy").onclick = ()=>{
+    get(".referalLinkCopy").onclick = () => {
       copyClip(`${location.origin}/#${data["user_id"]}`);
       initStatusMessage('Referal link copied to clipboar🙂🙂');
     };
@@ -929,7 +1005,7 @@ async function loadMyProfile() {
 // POST RENDER FUNCTION (unchanged logic)
 // -----------------------------
 
-async function loadExplorePosts() {
+async function loadExplorePosts(filters = {}) {
   const grids = document.querySelectorAll('.exploreCont .explorePosts .postGrid');
   grids.forEach(g => g.innerHTML = '<img src="assets/images/loader.gif" class="loaderGif">');
 
@@ -937,7 +1013,7 @@ async function loadExplorePosts() {
     const res = await fetch(`${MAIN_SERVER}/products/get_products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skip: 0, limit: 100 })
+      body: JSON.stringify({ skip: 0, limit: 100, ...filters })
     });
 
     const products = await res.json();
@@ -1063,9 +1139,9 @@ function openPostView(post, data, userPic, userName, badge) {
         <p>${attr.name}</p>
         <div class="selection postSlt">
           ${attr.values.map(v => {
-            const [valName] = v.split(':');
-            return `<p class="select" data-raw='${v}'><i class="fi fi-sr-check-circle"></i> ${valName}</p>`;
-          }).join('')}
+        const [valName] = v.split(':');
+        return `<p class="select" data-raw='${v}'><i class="fi fi-sr-check-circle"></i> ${valName}</p>`;
+      }).join('')}
         </div>`;
       allSpecs.appendChild(specItem);
 
@@ -1185,11 +1261,11 @@ function renderPost(post, grid) {
   const userName = post.host.username || 'anonymous';
   const badge = post.host.verification || 'null';
   const imageUrl = data.images?.length
-  ? getImageUrl(data.images[0].filename || data.images[0])
-  : 'assets/images/products/iphone0.jfif';
-;
+    ? getImageUrl(data.images[0].filename || data.images[0])
+    : 'assets/images/products/iphone0.jfif';
+  ;
 
-  
+
 
   const postCont = document.createElement('div');
   postCont.className = 'postCont';
@@ -1233,7 +1309,7 @@ function renderPost(post, grid) {
 // -----------------------------
 
 
-function handleOnlineStatus(){
+function handleOnlineStatus() {
   const socket = new WebSocket(`${MAIN_SERVER.replace("http", "ws")}/online_status`);
 
   socket.onopen = () => {
@@ -1378,7 +1454,7 @@ function applyWishlistData() {
       localStorage.setItem('sokoni_cart', JSON.stringify(cart));
       applyCartData();
       initStatusMessage("Moved to Cart! 🎉");
-      
+
       toggleWishlistItem(item);
     };
 
@@ -1392,9 +1468,9 @@ function applyWishlistData() {
 
 
 function applyCartData() {
- try {
+  try {
     setTimeout(() => { get(".buyRightNow").classList.remove("load") }, 1000);
-  
+
     const cartCounter = document.querySelector('.cartCounter');
     const cartList = document.querySelector('.cartList');
     const headerTotal = document.querySelector('.shoppingCart .header h2:last-child');
@@ -1403,13 +1479,13 @@ function applyCartData() {
     cartList.innerHTML = '';
     let total = 0;
 
-    if(cart.length === 0){
+    if (cart.length === 0) {
       cartList.innerHTML = `<img src="assets/images/empty.png"><p>Oops!! Your cart is Empty.</p>`;
       cartList.classList.add("empty");
       cartCounter.removeAttribute("new");
       headerTotal.textContent = `Tzs. 0/-`;
       return;
-    }else{
+    } else {
       cartList.classList.remove("empty");
     }
 
@@ -1472,7 +1548,7 @@ function applyCartData() {
       };
 
       plus.onclick = () => {
-        if(item.amount + 1 == item.product.stock) {
+        if (item.amount + 1 == item.product.stock) {
           initStatusMessage("Sorry!! You can't add more than that🥲🥹")
           return;
         };
@@ -1514,9 +1590,9 @@ function applyCartData() {
     }
 
     cartCounter.setAttribute("new", cart.length);
- } catch (error) {
+  } catch (error) {
     get(".shoppingCart .cartList").innerHTML = `<p class="error">Failed to load cart data. Error: ${error}</p>`;
- }
+  }
 };
 async function testPayment() {
   let phone = document.querySelector('.pendingPayment .input input').value;
@@ -1584,7 +1660,7 @@ async function submitProfileChanges() {
 // Handle profile picture changes
 async function profilePicChanges() {
   const profilePhotoUpdate = document.querySelector(".profilePhotoUpdate");
-  
+
   profilePhotoUpdate.addEventListener("change", async () => {
     const file = profilePhotoUpdate.files[0];
     if (!file) return;
@@ -1690,9 +1766,9 @@ async function verifyPayment(data, btn, cartData) {
   successAudio.volume = 1;
   failAudio.volume = 1;
 
-  setTimeout(async ()=>{
+  setTimeout(async () => {
     const url = `https://api.clickpesa.com/third-parties/payments/${data.order}`;
-    const options = {method: 'GET', headers: {Authorization: data.token}, body: undefined};
+    const options = { method: 'GET', headers: { Authorization: data.token }, body: undefined };
 
     try {
       console.log("Window focused, checking payment status...");
@@ -1701,22 +1777,22 @@ async function verifyPayment(data, btn, cartData) {
       const nxtData = await response.json();
       let dataStatus = nxtData[0].status;
       console.log("Payment status:", dataStatus);
-      
-      if(dataStatus == "PROCESSING") {
+
+      if (dataStatus == "PROCESSING") {
         verifyPayment(data, btn);
         return;
-      }else if(dataStatus == "FAILEDD"){
+      } else if (dataStatus == "FAILEDD") {
         failAudio.play();
         btn.classList.remove("load");
         shutPop('.checkout');
 
         return;
       };
-      
+
       fetch(`${MAIN_SERVER}/place_order`, {
         method: "POST", credentials: "include",
         headers: JSON_HEAD,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           id: localStorage.getItem("sokoni_identity"),
           order_ref: data.order,
           token: data.token,
@@ -1724,28 +1800,28 @@ async function verifyPayment(data, btn, cartData) {
           location_index: parseFloat(localStorage.getItem("location_index"))
         })
       })
-      .then(rsp => rsp.json())
-      .then(res => {
-        console.log(res);
-        if(res.status == "success"){
-          successAudio.play();
-          fireAll();
+        .then(rsp => rsp.json())
+        .then(res => {
+          console.log(res);
+          if (res.status == "success") {
+            successAudio.play();
+            fireAll();
 
-          localStorage.removeItem('sokoni_cart');
-          btn.classList.remove("load");
-          applyCartData();
-          shutPop('.checkout');
-          getPop('.paymentSuccess');
-          console.log("Payment successful");
-          return "SUCCESS";
-        }else{
-          failAudio.play();
-          btn.classList.remove("load");
-          shutPop('.checkout');
-          console.log("Payment failed during order placement");
-          return "FAILED";
-        }
-      });
+            localStorage.removeItem('sokoni_cart');
+            btn.classList.remove("load");
+            applyCartData();
+            shutPop('.checkout');
+            getPop('.paymentSuccess');
+            console.log("Payment successful");
+            return "SUCCESS";
+          } else {
+            failAudio.play();
+            btn.classList.remove("load");
+            shutPop('.checkout');
+            console.log("Payment failed during order placement");
+            return "FAILED";
+          }
+        });
     } catch (error) {
       console.log("Payment verification error:", error);
 
@@ -1903,7 +1979,7 @@ function renderLocations(data) {
   });
 };
 
-function renderPrices(data, location){
+function renderPrices(data, location) {
   let allPTags = document.querySelectorAll(".checkout p[tag]");
   allPTags[0].textContent = `Tzs.${formatMoney(data.total)}/-`
   allPTags[1].textContent = `Tzs.${(formatMoney(Math.round(data.distances[location] * 450)))}/-`;
@@ -2064,10 +2140,10 @@ function buildStoryHeader(profile, badge, date) {
     </div>`;
 };
 
-function applyRole(){
+function applyRole() {
   let targetElements = [".profileBase.accountSettings"]
   let role = localStorage.getItem("sokoni_role");
-  targetElements.forEach(el=>{
+  targetElements.forEach(el => {
     get(el).classList.add(role);
   })
 };
@@ -2076,11 +2152,13 @@ function applyRole(){
 //─── Endpoints Initialization ─────────────────────────────────────────────────── 
 
 
-function initAllEndpoints(){
-  window.addEventListener("load", ()=>{
+function initAllEndpoints() {
+  window.addEventListener("load", () => {
     initGetStories();
     initAddStory();
     loadExplorePosts();
+    loadCategories();
+    initSearch();
     applyCartData();
     applyWishlistData();
     profilePicChanges();

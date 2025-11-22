@@ -1,9 +1,9 @@
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const JSON_HEAD = {"Content-Type": "applicarion/json"}
+const JSON_HEAD = { "Content-Type": "applicarion/json" }
 const RWS_SERVER = "";
 const CWS_SERVER = "";
 // const MAIN_SERVER = "http://127.0.0.1:8000";
-const MAIN_SERVER = "https://decorative-handmade-proceed-analytical.trycloudflare.com";
+const MAIN_SERVER = "https://cement-took-disks-hockey.trycloudflare.com";
 //const socket = new WebSocket(`${MAIN_SERVER.replace("http", "ws")}/online_status`);
 const CLIENT_ID = "181406034089-stlf00e3mglhavcuk6uqav4i1dgvr073.apps.googleusercontent.com";
 let OTP = ""
@@ -34,31 +34,31 @@ let onboardData = {
 
 // constants up top
 
-function resetCreateInputs(){
+function resetCreateInputs() {
   let inputs = get('.floater-pages .productCreate .actInputs .input input, .floater-pages .productCreate .actInputs textarea', true);
-  for(let inp of inputs){
+  for (let inp of inputs) {
     inp.value = '';
   }
   let toggles = get('.floater-pages .productCreate .actInputs .toggleCont', true);
-  for(let tg of toggles){
-    tg.setAttribute('value','off');
+  for (let tg of toggles) {
+    tg.setAttribute('value', 'off');
   }
   let colors = get('.floater-pages .productCreate .imgCollection .image', true);
-  for(let c of colors){
+  for (let c of colors) {
     c.remove();
   }
   let attrs = get('.floater-pages .productCreate .attributes .attrList .attr', true);
-  for(let a of attrs){
-    if(!a.classList.contains('active')){a.remove()}
-    else{
-      a.querySelectorAll('input').forEach(i=>i.value='');
+  for (let a of attrs) {
+    if (!a.classList.contains('active')) { a.remove() }
+    else {
+      a.querySelectorAll('input').forEach(i => i.value = '');
     }
   }
 };
-function retrieveSettingsData(){
+function retrieveSettingsData() {
   let toggles = get('.floater-pages .productCreate .actInputs .toggleCont', true);
   let settings = {};
-  toggles.forEach(toggle=>{
+  toggles.forEach(toggle => {
     let key = toggle.getAttribute('value');
     let value = toggle.children[2].classList.contains('active') ? true : false;
     settings[key] = value;
@@ -185,10 +185,10 @@ function extractHashtags(description) {
   console.log(htmlTags)
   return htmlTags
 };
-function disableTouchAction(){
+function disableTouchAction() {
   window.addEventListener('contextmenu', e => e.preventDefault());
 };
-function inpSplit(text, size = 3, spaceType="-") {
+function inpSplit(text, size = 3, spaceType = "-") {
   return size > 0 ? text.match(new RegExp(`.{1,${size}}`, 'g')).join(spaceType) : text;
 };
 function isValid(phone) {
@@ -241,73 +241,73 @@ function shuffleArray(array) {
   }
   return array;
 };
-function get(el, all=false){return all ? document.querySelectorAll(el) : document.querySelector(el)};
-function getFloater(className){
-  if(className == '.storyView') switchTheme('#cdcbc9');
-  if(className == '.storyCreate') switchTheme('#111111ff');
+function get(el, all = false) { return all ? document.querySelectorAll(el) : document.querySelector(el) };
+function getFloater(className) {
+  if (className == '.storyView') switchTheme('#cdcbc9');
+  if (className == '.storyCreate') switchTheme('#111111ff');
   const floater = document.querySelector(`.floater-pages ${className}`);
-  if(floater.classList.contains("profileBase")){
+  if (floater.classList.contains("profileBase")) {
     floater.classList.add("load");
-    setTimeout(()=>{
+    setTimeout(() => {
       floater.classList.remove("load");
     }, 2000);
   }
   floater.classList.add('active');
   // console.log(className)
 };
-function getPop(className){
+function getPop(className) {
   switchTheme("#cdcbc9")
-  setTimeout(()=>{
+  setTimeout(() => {
     const popCont = document.querySelector('.all-popups');
     popCont.classList.add('active');
     popCont.querySelector(className).classList.add('active');
   }, 200)
 };
-function shutPop(className){
+function shutPop(className) {
   switchTheme("#faf8f5")
   const popCont = document.querySelector('.all-popups');
   popCont.querySelector(className).classList.remove('active');
-  setTimeout(()=>{
+  setTimeout(() => {
     popCont.classList.remove('active');
   }, 200)
 };
-function getDscr(num, id){
+function getDscr(num, id) {
   let allDscr = get(`#${id} .popDescrCont .popDescr`, true);
-  allDscr.forEach(dsc=>dsc.classList.remove("active"));
+  allDscr.forEach(dsc => dsc.classList.remove("active"));
   allDscr[num].classList.add("active");
   allDscr[num].querySelector(".default-btn").classList.remove("load");
 };
-function tgActive(cls){
-  try{cls.classList.toggle("active");return}catch(e){}
+function tgActive(cls) {
+  try { cls.classList.toggle("active"); return } catch (e) { }
   get(cls).classList.toggle("active");
 };
-function rmActive(cls){
+function rmActive(cls) {
   get(cls).classList.remove("active");
 };
-function addActive(cls){
+function addActive(cls) {
   get(cls).classList.add("active");
 };
-function sharePost(url){
+function sharePost(url) {
   if (navigator.share) {
     navigator.share({
       title: "Sokoni Africa",
       text: "Post from Sokoni Africa App",
       url: url
     })
-    .then(() => console.log("Shared successfully"))
-    .catch(err => console.error("Error sharing:", err));
+      .then(() => console.log("Shared successfully"))
+      .catch(err => console.error("Error sharing:", err));
   } else {
     console.log("Web Share API not supported on this browser.");
   }
 };
-function copyClip(text="barefawl.com"){
+function copyClip(text = "barefawl.com") {
   navigator.clipboard.writeText(text)
-  .then(() => console.log("Copied!"))
-  .catch(err => console.error("Failed:", err));
+    .then(() => console.log("Copied!"))
+    .catch(err => console.error("Failed:", err));
 };
-function closeFloater(className){
-    const floater = document.querySelector(className);
-    floater.classList.remove('active');
+function closeFloater(className) {
+  const floater = document.querySelector(className);
+  floater.classList.remove('active');
 };
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
@@ -316,23 +316,23 @@ function toggleFullscreen() {
     document.exitFullscreen();
   }
 };
-function disableEnter(){
+function disableEnter() {
   const allInputs = document.querySelectorAll('input');
-  allInputs.forEach(inp=>{
-    inp.addEventListener('keypress', (e)=>{
-      if(e.keyCode === 13){
+  allInputs.forEach(inp => {
+    inp.addEventListener('keypress', (e) => {
+      if (e.keyCode === 13) {
         e.preventDefault();
         return false;
       }
     });
-    inp.addEventListener('keyup', (e)=>{
-      if(e.keyCode === 13){
+    inp.addEventListener('keyup', (e) => {
+      if (e.keyCode === 13) {
         e.preventDefault();
         return false;
       }
     });
-    inp.addEventListener('keydown', (e)=>{
-      if(e.keyCode === 13){
+    inp.addEventListener('keydown', (e) => {
+      if (e.keyCode === 13) {
         e.preventDefault();
         return false;
       }
@@ -340,7 +340,7 @@ function disableEnter(){
   });
 };
 function formatMoney(num) {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
 function formatShort(num) {
   if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
@@ -373,8 +373,8 @@ function formatDate(input) {
 
   const suffix =
     day % 10 === 1 && day !== 11 ? 'st' :
-    day % 10 === 2 && day !== 12 ? 'nd' :
-    day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+      day % 10 === 2 && day !== 12 ? 'nd' :
+        day % 10 === 3 && day !== 13 ? 'rd' : 'th';
 
   return `${day}${suffix} ${month}, ${year}`;
 };
@@ -392,7 +392,7 @@ function getBadgeImage(badge) {
   if (badge === "blue") return "assets/images/badges/blue.png";
   return "";
 };
-function def(fn){fn()};
+function def(fn) { fn() };
 
 // complex functions
 
@@ -412,31 +412,31 @@ async function applyLocation() {
     );
   });
 };
-function applyValues(){
-    const allSteps = get('.main-content .stepContent', true);
-    allSteps.forEach(step=>{
-      if(onboardData[step.id] == null){
-        onboardData[step.id] = step.getAttribute('value')
-      }
-    });
-    localStorage.setItem('lang', allSteps[0].getAttribute('value'));
+function applyValues() {
+  const allSteps = get('.main-content .stepContent', true);
+  allSteps.forEach(step => {
+    if (onboardData[step.id] == null) {
+      onboardData[step.id] = step.getAttribute('value')
+    }
+  });
+  localStorage.setItem('lang', allSteps[0].getAttribute('value'));
 };
-function initEnterKeyHint(){
-  document.querySelectorAll("input").forEach(inp=>{
+function initEnterKeyHint() {
+  document.querySelectorAll("input").forEach(inp => {
     inp.enterKeyHint = "done";
   })
 }
-function initTitleDesc(index){
-    let target = displayData[index];
-    const titleEl = get('.onboarding .first-content .titleDsc');
-    const descrEl = get('.onboarding .first-content .description');
-    if(localStorage.getItem('lang') == 'sw'){
-        titleEl.textContent = target.titleSw;
-        descrEl.textContent = target.descrSw;
-    }else{
-        titleEl.textContent = target.title;
-        descrEl.textContent = target.descr;
-    };
+function initTitleDesc(index) {
+  let target = displayData[index];
+  const titleEl = get('.onboarding .first-content .titleDsc');
+  const descrEl = get('.onboarding .first-content .description');
+  if (localStorage.getItem('lang') == 'sw') {
+    titleEl.textContent = target.titleSw;
+    descrEl.textContent = target.descrSw;
+  } else {
+    titleEl.textContent = target.title;
+    descrEl.textContent = target.descr;
+  };
 };
 function initOnboardingSteps() {
   const onboarding = get('.section-content.onboarding');
@@ -445,7 +445,7 @@ function initOnboardingSteps() {
   const stepsContent = onboarding.querySelector('.main-content');
 
   initTitleDesc(0);
-  
+
   setTimeout(() => {
     stepsList[0].classList.add('active');
 
@@ -522,24 +522,24 @@ function initOnboardingSteps() {
       }
     };
   }, 1000);
-  
-  window.addEventListener('click', ()=>{
+
+  window.addEventListener('click', () => {
     let targetIndex = call2Action[1].getAttribute('left');
     let targetContent = stepsContent.querySelectorAll('.stepContent')[targetIndex];
-    if ( targetContent.hasAttribute('value') ){
+    if (targetContent.hasAttribute('value')) {
       call2Action[1].classList.remove('disabled');
-    }else{
+    } else {
       call2Action[1].classList.add('disabled');
     };
   });
 };
 
-function startOnboarding(response){
+function startOnboarding(response) {
   let idToken;
-  try{
+  try {
     idToken = response?.credential;
     // console.log(response, idToken);
-  }catch(e){}
+  } catch (e) { }
 
   const startupPage = get('.section-content.startup');
   const onboarding = get('.section-content.onboarding');
@@ -552,48 +552,48 @@ function startOnboarding(response){
   fetch(`${MAIN_SERVER}/authenticate`, {
     method: "POST", credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       auth_type: "email",
       auth_by: idToken,
       referee: window.location.href.split("#")[1] || null
     })
-  }).then(data_json=>{
+  }).then(data_json => {
     data_json.json()
-    .then(response=>{
-      shutPop('.signIn');
+      .then(response => {
+        shutPop('.signIn');
 
-      console.log(response);
-      if(response.status == "failed") return;
-      localStorage.setItem("sokoni_identity", response.___access_token);
-      localStorage.setItem("___refresh_token", response.___refresh_token);
-      // socket.send(localStorage.getItem("sokoni_identity"));
+        console.log(response);
+        if (response.status == "failed") return;
+        localStorage.setItem("sokoni_identity", response.___access_token);
+        localStorage.setItem("___refresh_token", response.___refresh_token);
+        // socket.send(localStorage.getItem("sokoni_identity"));
 
-      startupPage.classList.add('disabled');
-      subscribeUser();
-      showLocations();
+        startupPage.classList.add('disabled');
+        subscribeUser();
+        showLocations();
 
-      if(!response.new) { // existing user
-        localStorage.setItem("sokoni_role", response.role);
-        
-        appContent.classList.add("active");
+        if (!response.new) { // existing user
+          localStorage.setItem("sokoni_role", response.role);
 
-        getPop(".welcome");
-        applyRole();
-        return;
-      }
-      
-      initOnboardingSteps();
-      onboarding.classList.add('active');
-      // onboardInp.addEventListener('input',()=>{
-      //     let targetIndex = call2Action[1].getAttribute('left');
-      //     let targetContent = stepsContent.querySelectorAll('.stepContent')[targetIndex];
-      //     if ( targetContent.hasAttribute('value') ){
-      //         call2Action[1].classList.remove('disabled');
-      //     }else{
-      //         call2Action[1].classList.add('disabled');
-      //     };
-      // });
-    });
+          appContent.classList.add("active");
+
+          getPop(".welcome");
+          applyRole();
+          return;
+        }
+
+        initOnboardingSteps();
+        onboarding.classList.add('active');
+        // onboardInp.addEventListener('input',()=>{
+        //     let targetIndex = call2Action[1].getAttribute('left');
+        //     let targetContent = stepsContent.querySelectorAll('.stepContent')[targetIndex];
+        //     if ( targetContent.hasAttribute('value') ){
+        //         call2Action[1].classList.remove('disabled');
+        //     }else{
+        //         call2Action[1].classList.add('disabled');
+        //     };
+        // });
+      });
   }).catch(error => {
     console.error('Authentication request failed:', error);
     alert('Google login failed. Please try again.');
@@ -601,17 +601,17 @@ function startOnboarding(response){
     onbBtn.classList.remove("load");
   });
 };
-function onboardingTrigger(){
+function onboardingTrigger() {
   const onbBtn = document.querySelectorAll('.all-popups .signIn .default-btn.googleLogin');
   console.log(onbBtn);
-  onbBtn.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  onbBtn.forEach(btn => {
+    btn.addEventListener('click', () => {
       startOnboarding();
     });
   })
-  
+
   const skipBtn = document.querySelector('.all-popups .signIn .guestCont');
-  skipBtn.addEventListener('click', ()=>{
+  skipBtn.addEventListener('click', () => {
     shutPop('.signIn');
     get(".section-content.startup").classList.add("disabled");
     get(".section-content.appContent").classList.add("active");
@@ -623,7 +623,7 @@ function googleLogin() {
   const onbBtn = document.querySelector('.all-popups .signIn .default-btn.googleLogin');
 
   window.addEventListener('load', () => {
-    onbBtn.addEventListener('touchend', ()=>{
+    onbBtn.addEventListener('touchend', () => {
       console.log("touched");
       onbBtn.classList.add("load");
 
@@ -632,32 +632,32 @@ function googleLogin() {
     });
   });
 };
-function verifyPhone(el){
+function verifyPhone(el) {
   const nLogin = document.querySelector("#numberLogin");
-  let phone = nLogin.value.replaceAll("-","");
-  if(el) el.classList.add("load");
+  let phone = nLogin.value.replaceAll("-", "");
+  if (el) el.classList.add("load");
 
-  if(phone.length < 8){
-    setTimeout(()=>{
+  if (phone.length < 8) {
+    setTimeout(() => {
       el.classList.remove("load");
       return;
     }, 1000);
   };
 
-  setTimeout(()=>{
+  setTimeout(() => {
     fetch(`${MAIN_SERVER}/authenticate`, {
       method: "POST", credentials: "include",
-      headers: {"Content-Type":"application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         auth_type: "phone",
         auth_by: phone,
         OTP: OTP,
         referee: window.location.href.split("#")[1] || null
       })
-    }).then(rsp=>{
-      if(rsp.status == 200){
-        rsp.json().then(otp=>{
-          if(otp.status == "success"){
+    }).then(rsp => {
+      if (rsp.status == 200) {
+        rsp.json().then(otp => {
+          if (otp.status == "success") {
             localStorage.setItem("sokoni_identity", otp.___access_token);
             localStorage.setItem("___refresh_token", otp.___refresh_token);
             // socket.send(localStorage.getItem("sokoni_identity"));
@@ -667,12 +667,12 @@ function verifyPhone(el){
             shutPop(".signIn");
             subscribeUser();
             showLocations();
-            
-            if(otp.new){
+
+            if (otp.new) {
               initOnboardingSteps();
               get('.section-content.startup').classList.add('disabled');
               get('.section-content.onboarding').classList.add('active');
-            }else{
+            } else {
               // console.log(otp)
               localStorage.setItem("sokoni_role", otp.role);
 
@@ -683,7 +683,7 @@ function verifyPhone(el){
               // loadExplorePosts();
               // initAllEndpoints();
             }
-          }else{
+          } else {
             initOTPinput('.loginOTP', get('.loginBtn'), verifyPhone, otp.otp);
             getDscr(2, "userSignIn");
             OTP = otp.otp;
@@ -693,51 +693,51 @@ function verifyPhone(el){
     })
   }, 1500);
 };
-function getIn(user_data){
+function getIn(user_data) {
   fetch(`${MAIN_SERVER}/authenticate`, {
     method: "POST", credentials: "include",
-    headers: {"Content-Type": "application/json"},
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(user_data)
   })
-  .then(rsp=>rsp.json())
-  .then(json_data=>{
-    console.log(json_data);
-    if(json_data.status = "failed") return;
-    try {
-      let rec_data = json_data.data.split("uuid-");
-      decrypt(rec_data[0], `uuid-${rec_data[1]}`)
-      .then(final_data=>{
-        setTimeout(()=>{
-          final_data = JSON.parse(final_data)
+    .then(rsp => rsp.json())
+    .then(json_data => {
+      console.log(json_data);
+      if (json_data.status = "failed") return;
+      try {
+        let rec_data = json_data.data.split("uuid-");
+        decrypt(rec_data[0], `uuid-${rec_data[1]}`)
+          .then(final_data => {
+            setTimeout(() => {
+              final_data = JSON.parse(final_data)
 
-          localStorage.setItem("auth", JSON.stringify(final_data))
-          shutPop('.signIn');
-          get('.section-content.startup').classList.add('disabled');
-          get('.section-content.onboarding').classList.add('disabled');
-          get('.section-content.appContent').classList.add('active');
-          loadExplorePosts();
-          initAllEndpoints()
-        }, 100);
-      });
-    } catch (error) {};
-  });
+              localStorage.setItem("auth", JSON.stringify(final_data))
+              shutPop('.signIn');
+              get('.section-content.startup').classList.add('disabled');
+              get('.section-content.onboarding').classList.add('disabled');
+              get('.section-content.appContent').classList.add('active');
+              loadExplorePosts();
+              initAllEndpoints()
+            }, 100);
+          });
+      } catch (error) { };
+    });
 };
 
-function handleLoader(){
+function handleLoader() {
   const loader = document.querySelector('.loader');
-  
-  if(/iPad|iPhone|iMac/.test(navigator.userAgent)){
+
+  if (/iPad|iPhone|iMac/.test(navigator.userAgent)) {
     document.body.setAttribute("ios", "");
   };
   // downloadPWA();
-  window.addEventListener('load', ()=>{
+  window.addEventListener('load', () => {
     refreshToken();
     google.accounts.id.initialize({
       client_id: CLIENT_ID,
       callback: startOnboarding,
       ux_mode: "popup"
     });
-    if(localStorage.getItem("sokoni_identity")){
+    if (localStorage.getItem("sokoni_identity")) {
       console.log("getting in")
       const startupPage = get('.section-content.startup');
       const appContent = get('.section-content.appContent');
@@ -746,36 +746,36 @@ function handleLoader(){
       // loadExplorePosts();
       // initAllEndpoints();
     };
-    get('.exploreReload').ontouchstart = ()=>{
-      if(!get('.exploreReload').classList.contains("active")) return;
+    get('.exploreReload').ontouchstart = () => {
+      if (!get('.exploreReload').classList.contains("active")) return;
       loadExplorePosts();
     };
-    if(!isStandalone()) {window.click();return};
-    setTimeout(()=>{
+    if (!isStandalone()) { window.click(); return };
+    setTimeout(() => {
       loader.classList.add('disabled');
     }, 2000);
   })
 };
-function watchStartupScroll(){
-    const startupScroll = document.querySelector('.startup-scroll');
-    const swipeAnimation = document.querySelector('.swipeInstruct');
-    window.addEventListener("load", ()=>{
-      setTimeout(()=>{
-        // if(startupScroll.hasAttribute('scrolled')) return;
-          swipeAnimation.classList.toggle('active');
-          setTimeout(()=>{
-              swipeAnimation.classList.toggle('active');
-          }, 5000);
-      }, 2000);
-    });
+function watchStartupScroll() {
+  const startupScroll = document.querySelector('.startup-scroll');
+  const swipeAnimation = document.querySelector('.swipeInstruct');
+  window.addEventListener("load", () => {
+    setTimeout(() => {
+      // if(startupScroll.hasAttribute('scrolled')) return;
+      swipeAnimation.classList.toggle('active');
+      setTimeout(() => {
+        swipeAnimation.classList.toggle('active');
+      }, 5000);
+    }, 2000);
+  });
 }
-function inputGaps(input, size, isNum){
-    input.addEventListener("input", (e) => {
-        if(isNum && /[a-zA-Z]/.test(e.key)) return;
-        let value = input.value.replace(/\s/g, '');
-        let formatted = value.match(/.{1,3}/g)?.join(' ') || '';
-        input.value = formatted;
-    });
+function inputGaps(input, size, isNum) {
+  input.addEventListener("input", (e) => {
+    if (isNum && /[a-zA-Z]/.test(e.key)) return;
+    let value = input.value.replace(/\s/g, '');
+    let formatted = value.match(/.{1,3}/g)?.join(' ') || '';
+    input.value = formatted;
+  });
 };
 function parseTime(str) {
   if (str.toLowerCase() === "yesterday") return -1;
@@ -812,10 +812,10 @@ function renderChats(chatList) {
       <i class="fi fi-rr-trash delete"></i>
     `;
     enableSwipe(chatCard);
-    chatCard.addEventListener('click', ()=>{
+    chatCard.addEventListener('click', () => {
       getFloater('.chatroom')
     });
-    chatCard.onclick = ()=>{
+    chatCard.onclick = () => {
       unread[chat.sender_id] = 0;
       localStorage.setItem("sokoni_unread", JSON.stringify(unread))
       getConversation(chat.sender_id, [chat.img, chat.name]);
@@ -861,24 +861,24 @@ function enableSwipe(chatCard) {
     moved = false;
   });
 };
-async function switchTheme(color='#faf8f5') {
-    // let { StatusBar, StatusBarStyle } = Capacitor.Plugins;
+async function switchTheme(color = '#faf8f5') {
+  // let { StatusBar, StatusBarStyle } = Capacitor.Plugins;
 
-    document.getElementById('themeColorMeta').content = color;
-    // if(color=="#faf8f5"){document.body.classList.add("white")}
-    // else{document.body.classList.remove("white")};
-    // await StatusBar.setStyle({ style: StatusBarStyle.Light });
+  document.getElementById('themeColorMeta').content = color;
+  // if(color=="#faf8f5"){document.body.classList.add("white")}
+  // else{document.body.classList.remove("white")};
+  // await StatusBar.setStyle({ style: StatusBarStyle.Light });
 };
-async function logOut(){
+async function logOut() {
   localStorage.removeItem("sokoni_identity");
   localStorage.removeItem("sokoni_role");
-  fetch(`${MAIN_SERVER}/logout`, {method: "POST"})
-  .then(rsp=>rsp.json())
-  .then(js=>{
-    location.reload();
-  })
+  fetch(`${MAIN_SERVER}/logout`, { method: "POST" })
+    .then(rsp => rsp.json())
+    .then(js => {
+      location.reload();
+    })
 };
-function enableCategories(){
+function enableCategories() {
   const unitMap = {
     Fashion: ["Piece", "Pair", "Set"],
     Electronics: ["Piece", "Box", "Set"],

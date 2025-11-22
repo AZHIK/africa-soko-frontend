@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: research-gears-recruits
+    env: node
+    plan: free
+    buildCommand: 'npm install'
+    startCommand: 'npm start'
